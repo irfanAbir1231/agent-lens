@@ -8,8 +8,15 @@ import { summary as mapAgentSummary, getAgents } from "./agents";
 import { mapSummary as mapAlertSummary, getAlerts } from "./alerts";
 import { getDataQuality } from "./data-quality";
 
-function buildOverviewSnapshot(overview: OverviewDto, alerts: AlertListDto, cases: CaseListDto): OverviewSnapshot {
+function providerStatus(dataHealthStatus: string | undefined): OverviewSnapshot["providerSummaries"][number]["status"] {
+  if (dataHealthStatus === "HEALTHY") return "HEALTHY";
+  if (dataHealthStatus === "DELAYED") return "DELAYED";
+  return dataHealthStatus ? "WATCH" : "UNKNOWN";
+}
+
+function buildOverviewSnapshot(overview: OverviewDto, alerts: AlertListDto, cases: CaseListDto, dataQuality: DataQualityResult[]): OverviewSnapshot {
   const feed = new Map(overview.feed_summary.map((item) => [item.provider, item]));
+  const quality = new Map(dataQuality.map((item) => [item.providerId, item]));
   return {
     generatedAt: overview.generated_at,
     sharedPhysicalCashMinor: overview.total_shared_cash_minor,
@@ -18,8 +25,8 @@ function buildOverviewSnapshot(overview: OverviewDto, alerts: AlertListDto, case
     criticalCases: cases.cases.filter((item) => item.severity === "CRITICAL").length,
     providerSummaries: overview.provider_totals.map((item) => ({
       providerId: item.provider, balanceMinor: item.total_provider_balance_minor,
-      status: feed.get(item.provider)?.status === "HEALTHY" ? "HEALTHY" : "WATCH",
-      confidence: feed.get(item.provider)?.status === "HEALTHY" ? 0.95 : 0.55,
+      status: providerStatus(feed.get(item.provider)?.status),
+      confidence: quality.get(item.provider)?.confidenceMultiplier ?? (feed.get(item.provider)?.status === "HEALTHY" ? 0.95 : 0.55),
       coverageMinutes: null, estimatedShortageMinutes: null,
       lastUpdatedAt: feed.get(item.provider)?.last_received_at ?? new Date(0).toISOString(),
     })),
@@ -29,10 +36,10 @@ function buildOverviewSnapshot(overview: OverviewDto, alerts: AlertListDto, case
 
 export async function getOverview(): Promise<OverviewSnapshot> {
   if (apiConfig.mode === "mock") return mockResponse(overviewSnapshot);
-  const [overview, alerts, cases] = await Promise.all([
-    fastApiClient.overview<OverviewDto>(), fastApiClient.alerts<AlertListDto>(), fastApiClient.cases<CaseListDto>(),
+  const [overview, alerts, cases, dataQuality] = await Promise.all([
+    fastApiClient.overview<OverviewDto>(), fastApiClient.alerts<AlertListDto>(), fastApiClient.cases<CaseListDto>(), getDataQuality(),
   ]);
-  return buildOverviewSnapshot(overview, alerts, cases);
+  return buildOverviewSnapshot(overview, alerts, cases, dataQuality);
 }
 
 export interface OverviewBundle {
@@ -58,7 +65,7 @@ export async function loadOverviewBundle(): Promise<OverviewBundle> {
     fastApiClient.alerts<AlertListDto>(), fastApiClient.cases<CaseListDto>(), getDataQuality(),
   ]);
   return {
-    overview: buildOverviewSnapshot(overviewDto, alertsDto, casesDto),
+    overview: buildOverviewSnapshot(overviewDto, alertsDto, casesDto, dataQuality),
     agents: agentsDto.items.map(mapAgentSummary),
     alerts: alertsDto.alerts.map(mapAlertSummary),
     dataQuality,
