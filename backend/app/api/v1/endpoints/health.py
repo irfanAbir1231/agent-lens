@@ -1,0 +1,2 @@
+"""Health endpoint placeholder."""
+
