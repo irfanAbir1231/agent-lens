@@ -1,8 +1,5 @@
-import { getAgents } from "@/lib/api/agents";
-import { getAlerts } from "@/lib/api/alerts";
-import { getDataQuality } from "@/lib/api/data-quality";
 import { FrontendApiError } from "@/lib/api/errors";
-import { getOverview } from "@/lib/api/overview";
+import { loadOverviewBundle } from "@/lib/api/overview";
 import { formatBDT, formatConfidence, formatStatus } from "@/lib/formatting";
 import type { Alert, AgentSummary, DataQualityResult, ProviderId, ProviderOverview, ProviderStatus, Severity } from "@/types";
 
@@ -188,12 +185,7 @@ function pressureRow(agent: AgentSummary, agentAlerts: Alert[], rank: number): A
 const FEATURED_AGENT_ID = "AGENT-104";
 
 export async function loadOverviewViewModel(): Promise<OverviewViewModel> {
-  // Forecasts are fetched in the same batch as everything else (not
-  // sequenced after it) since the underlying endpoint runs a synchronous
-  // risk-computation pipeline that can take upward of 20 seconds on its
-  // own; that level of detail belongs on the agent detail / analysis
-  // pages, not the landing page every judge sees first.
-  const [overview, agents, alerts, dataQuality] = await Promise.all([getOverview(), getAgents(), getAlerts(), getDataQuality()]);
+  const { overview, agents, alerts, dataQuality } = await loadOverviewBundle();
   const referenceTime = new Date(overview.generatedAt);
   const bkash = requireProvider(overview.providerSummaries, "BKASH");
   const nagad = requireProvider(overview.providerSummaries, "NAGAD");

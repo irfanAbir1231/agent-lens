@@ -6,6 +6,7 @@ import { DataQualityDemoControls } from "@/features/data-quality/components/data
 // against the live backend, which can time out under concurrent build
 // workers. Must always render per-request.
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export default async function DataHealthPage() {
   const providers = await getDataQuality();

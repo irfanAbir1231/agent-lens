@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/page-header"; import { ForecastM
 // (PROVIDER_OPERATIONS), which lacks that permission, so this page must be
 // rendered per-request rather than prerendered at build time.
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export default async function MetricsPage() {
   const snapshot = await getMetrics();

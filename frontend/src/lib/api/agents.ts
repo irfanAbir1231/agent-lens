@@ -7,7 +7,7 @@ import { fastApiClient } from "./fastapi-client";
 import type { AgentDto, ForecastDto, Page } from "./backend-dto";
 
 const pressure = (value: string) => value === "CRITICAL" || value === "HIGH" || value === "WATCH" ? value : "HEALTHY";
-const summary = (agent: AgentDto): AgentSummary => ({ agentId: agent.id, name: agent.display_label, area: agent.area, sharedPhysicalCashMinor: agent.shared_cash_minor, activeAlertCount: 0, openCaseCount: 0 });
+export const summary = (agent: AgentDto): AgentSummary => ({ agentId: agent.id, name: agent.display_label, area: agent.area, sharedPhysicalCashMinor: agent.shared_cash_minor, activeAlertCount: 0, openCaseCount: 0 });
 const detail = (agent: AgentDto): AgentDetail => ({ ...summary(agent), fieldOfficerName: "Assigned field team", totalProviderValueMinor: agent.provider_balances.reduce((total, item) => total + item.provider_balance_minor, 0), providerBalances: agent.provider_balances.map((item) => ({ providerId: item.provider, agentId: agent.id, balanceMinor: item.provider_balance_minor, status: agent.feed_states.find((feed) => feed.provider === item.provider)?.status === "HEALTHY" ? "HEALTHY" : "WATCH", confidence: agent.feed_states.find((feed) => feed.provider === item.provider)?.status === "HEALTHY" ? 0.95 : 0.55, coverageMinutes: null, estimatedShortageMinutes: null, lastUpdatedAt: item.updated_at, lastUpdateLabel: new Date(item.updated_at).toLocaleString() })) });
 
 export async function getAgents(): Promise<AgentSummary[]> {
