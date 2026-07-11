@@ -4,6 +4,28 @@
 
 :root {
   color-scheme: light;
+  --color-page-background: #e9eef5;
+  --color-workspace: #f5f8fc;
+  --color-panel: #ffffff;
+  --color-panel-subtle: #f8fafd;
+  --color-border: #dce4ee;
+  --color-border-strong: #c8d3e1;
+  --color-text-primary: #171b24;
+  --color-text-secondary: #667085;
+  --color-text-muted: #8a94a6;
+  --color-accent: #2f80ed;
+  --color-accent-soft: #dcebff;
+  --color-healthy: #68b96b;
+  --color-healthy-soft: #e8f6e9;
+  --color-warning: #d9a441;
+  --color-warning-soft: #fff5df;
+  --color-critical: #e34d67;
+  --color-critical-soft: #fff0f3;
+  --color-review: #7468d8;
+  --color-review-soft: #f0efff;
+  --color-unknown: #7c8798;
+  --color-unknown-soft: #eef1f5;
+  --color-focus-ring: #2f80ed;
 }
 
 * {
@@ -11,13 +33,13 @@
 }
 
 html {
-  background: #f4f6f8;
+  background: var(--color-page-background);
 }
 
 body {
   margin: 0;
-  color: #14213d;
-  background: #f4f6f8;
+  color: var(--color-text-primary);
+  background: var(--color-page-background);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0;
 }
@@ -31,12 +53,21 @@ select {
 }
 
 :focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid var(--color-focus-ring);
 }
 
 button,
 select {
   min-height: 40px;
+}
+
+::selection {
+  color: var(--color-text-primary);
+  background: var(--color-accent-soft);
+}
+
+#main-content {
+  scroll-margin-top: 5rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

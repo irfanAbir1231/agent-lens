@@ -1,14 +1,21 @@
 import type { ReactNode } from "react";
+import { SkipLink } from "@/components/accessibility/skip-link";
+import { ContentContainer } from "./content-container";
+import { MobileNavigation } from "./mobile-navigation";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen bg-[var(--color-page-background)]">
+      <SkipLink />
       <Sidebar />
       <div className="lg:pl-60">
         <Topbar />
-        <main className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+        <MobileNavigation />
+        <main id="main-content" tabIndex={-1}>
+          <ContentContainer>{children}</ContentContainer>
+        </main>
       </div>
     </div>
   );

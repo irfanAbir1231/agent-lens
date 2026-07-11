@@ -1,12 +1,12 @@
 export type StatusTone = "healthy" | "watch" | "critical" | "review" | "unknown" | "neutral";
 
 const toneClasses: Record<StatusTone, string> = {
-  healthy: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  watch: "border-amber-200 bg-amber-50 text-amber-900",
-  critical: "border-red-200 bg-red-50 text-red-800",
-  review: "border-violet-200 bg-violet-50 text-violet-800",
-  unknown: "border-slate-300 bg-slate-100 text-slate-700",
-  neutral: "border-blue-200 bg-blue-50 text-blue-800",
+  healthy: "border-[var(--color-healthy)] bg-[var(--color-healthy-soft)] text-[var(--color-text-primary)]",
+  watch: "border-[var(--color-warning)] bg-[var(--color-warning-soft)] text-[var(--color-text-primary)]",
+  critical: "border-[var(--color-critical)] bg-[var(--color-critical-soft)] text-[var(--color-text-primary)]",
+  review: "border-[var(--color-review)] bg-[var(--color-review-soft)] text-[var(--color-text-primary)]",
+  unknown: "border-[var(--color-unknown)] bg-[var(--color-unknown-soft)] text-[var(--color-text-primary)]",
+  neutral: "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-text-primary)]",
 };
 
 export function StatusBadge({ label, tone }: { label: string; tone: StatusTone }) {
