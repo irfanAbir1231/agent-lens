@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     database_url: str = ""
     migration_database_url: str | None = None
     cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["http://localhost:3000"])
+    # Vercel mints a new random preview URL per deployment (e.g.
+    # agent-lens-<hash>-<team>.vercel.app), so a fixed CORS allowlist breaks
+    # on every redeploy. Match any *.vercel.app origin in addition to the
+    # explicit allowlist above; override via CORS_ORIGIN_REGEX if needed.
+    cors_origin_regex: str | None = r"^https://.*\.vercel\.app$"
     default_scenario: ScenarioId = ScenarioId.NORMAL_DAY
     default_seed: int = 2026
     log_level: str = "INFO"
