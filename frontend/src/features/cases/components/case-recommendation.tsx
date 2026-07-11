@@ -1,0 +1,3 @@
+export function CaseRecommendation() {
+  return <section className="rounded-lg border-2 border-[var(--color-review)] bg-[var(--color-review-soft)] p-5"><h2 className="text-base font-semibold text-[var(--color-text-primary)]">Recommended next step</h2><p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">Verify outlet demand, confirm available physical cash, and assess provider-approved operational support.</p><p className="mt-3 rounded-md border border-[var(--color-critical)] bg-[var(--color-critical-soft)] p-3 text-sm font-bold text-[var(--color-text-primary)]">Do not transfer liquidity automatically.</p></section>;
+}
