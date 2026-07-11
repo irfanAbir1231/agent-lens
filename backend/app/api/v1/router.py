@@ -1,10 +1,12 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints.agents import router as agents_router
+from app.api.v1.endpoints.data_quality import router as data_quality_router
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.overview import router as overview_router
 
 router = APIRouter()
 router.include_router(health_router)
 router.include_router(overview_router)
+router.include_router(data_quality_router)
 router.include_router(agents_router)
