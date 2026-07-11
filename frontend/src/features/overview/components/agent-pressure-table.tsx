@@ -1,25 +1,25 @@
-import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
+import type { AgentPressureViewModel } from "../overview-view-model";
 
-const rows = [
-  ["1", "AGENT-104", "Sylhet Market", "Nagad Critical", "\u09F342,000", "37-minute shortage"],
-  ["2", "AGENT-219", "Zindabazar", "bKash High", "\u09F319,000", "Demand surge"],
-  ["3", "AGENT-087", "Amberkhana", "Rocket Delayed", "\u09F331,000", "Data unavailable"],
-];
-
-export function AgentPressureTable() {
+export function AgentPressureTable({ rows }: { rows: AgentPressureViewModel[] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-        <thead><tr className="border-b border-slate-200 text-xs uppercase text-slate-500">{["Rank", "Agent", "Area", "Highest pressure", "Shared cash", "Primary risk", "Action"].map((heading) => <th key={heading} scope="col" className="px-3 py-3 font-semibold">{heading}</th>)}</tr></thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={row[1]} className="border-b border-slate-100 last:border-0">
-              {row.map((cell, cellIndex) => <td key={cellIndex} className={`px-3 py-4 ${cellIndex === 1 ? "font-semibold text-ink" : "text-slate-700"}`}>{cell}</td>)}
-              <td className="px-3 py-4">{index === 0 ? <Link href="/agents/AGENT-104" className="inline-flex min-h-10 items-center font-semibold text-blue-700 hover:text-blue-900">View agent</Link> : <span className="text-slate-500">Monitor</span>}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable caption="Agents ranked by immediate operational pressure" className="min-w-[780px]">
+      <thead><tr className="border-b border-[var(--color-border-strong)] text-xs uppercase text-[var(--color-text-muted)]">{["Rank", "Agent", "Area", "Highest pressure", "Shared cash", "Primary risk", "Action"].map((heading) => <th key={heading} scope="col" className="px-3 py-3 font-semibold">{heading}</th>)}</tr></thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.agentId} className="border-b border-[var(--color-border)] last:border-0">
+            <td className="px-3 py-4 font-semibold text-[var(--color-text-secondary)]">{row.rank}</td>
+            <th scope="row" className="px-3 py-4 text-left font-semibold text-[var(--color-text-primary)]">{row.agentId}</th>
+            <td className="px-3 py-4 text-[var(--color-text-secondary)]">{row.area}</td>
+            <td className="px-3 py-4"><StatusBadge label={row.highestPressure} tone={row.pressureTone} /></td>
+            <td className="px-3 py-4 font-semibold text-[var(--color-text-primary)]">{row.sharedCash}</td>
+            <td className="px-3 py-4 text-[var(--color-text-secondary)]">{row.primaryRisk}</td>
+            <td className="px-3 py-4">{row.actionHref ? <Button href={row.actionHref} variant="ghost">View agent</Button> : <span className="text-sm text-[var(--color-text-muted)]">Monitor</span>}</td>
+          </tr>
+        ))}
+      </tbody>
+    </DataTable>
   );
 }

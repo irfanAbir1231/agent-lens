@@ -1,20 +1,25 @@
-const rows = [
-  { label: "Nagad", value: "37 minutes", width: "15%", tone: "bg-red-600" },
-  { label: "Rocket", value: "Unknown because data is delayed", width: "34%", tone: "bg-slate-400" },
-  { label: "bKash", value: "4 hours 10 minutes", width: "100%", tone: "bg-emerald-600" },
-];
+import type { TimelineViewModel } from "../overview-view-model";
 
-export function ShortageTimeline() {
+const barClasses = {
+  healthy: "bg-[var(--color-healthy)]",
+  watch: "bg-[var(--color-warning)]",
+  critical: "bg-[var(--color-critical)]",
+  review: "bg-[var(--color-review)]",
+  unknown: "bg-[var(--color-unknown)]",
+  neutral: "bg-[var(--color-accent)]",
+};
+
+export function ShortageTimeline({ items }: { items: TimelineViewModel[] }) {
   return (
     <div className="space-y-5">
-      {rows.map((row) => (
-        <div key={row.label}>
+      {items.map((item) => (
+        <div key={item.provider}>
           <div className="mb-2 flex flex-wrap justify-between gap-2 text-sm">
-            <span className="font-semibold text-ink">{row.label}</span>
-            <span className="text-slate-700">{row.value}</span>
+            <span className="font-semibold text-[var(--color-text-primary)]">{item.provider}</span>
+            <span className="text-[var(--color-text-secondary)]">{item.value}</span>
           </div>
-          <div className="h-3 overflow-hidden rounded-full bg-slate-200" role="img" aria-label={`${row.label}: ${row.value}`}>
-            <div className={`h-full rounded-full ${row.tone}`} style={{ width: row.width }} />
+          <div className="h-3 overflow-hidden rounded-full bg-[var(--color-border)]" role="img" aria-label={`${item.provider}: ${item.value}`}>
+            <div className={`h-full rounded-full ${barClasses[item.tone]}`} style={{ width: `${item.widthPercent}%` }} />
           </div>
         </div>
       ))}
