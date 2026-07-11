@@ -21,7 +21,7 @@ export function DemoRoleSelector() {
         </select>
       </label>
       <p className="mt-1 max-w-md text-xs leading-5 text-[var(--color-text-secondary)]">{roleDescription}</p>
-      <p className="text-xs font-medium leading-5 text-[var(--color-review)]">Demo role &mdash; authorization will be enforced by the FastAPI backend later.</p>
+      <p className="text-xs font-medium leading-5 text-[var(--color-review)]">Demo role &mdash; FastAPI authorization remains authoritative in live mode.</p>
     </div>
   );
 }

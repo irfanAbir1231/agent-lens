@@ -2,6 +2,8 @@ import { defaultScenarioId, scenarios } from "@/mocks";
 import type { Scenario } from "@/types";
 import { findMockOrThrow, mockResponse } from "./mock-client";
 import { mockDelay } from "./mock-delay";
+import { apiConfig } from "./config";
+import { fastApiClient } from "./fastapi-client";
 
 let activeScenarioId = defaultScenarioId;
 export interface ScenarioPreset { id:string; name:string; description:string; conditions:string[]; response:string; provider:"BKASH"|"NAGAD"|"ROCKET"; delay:number; demand:number; blocked:boolean }
@@ -25,10 +27,16 @@ function currentScenarios(): Scenario[] {
 }
 
 export function getScenarios(): Promise<Scenario[]> {
+  if (apiConfig.mode === "fastapi") return fastApiClient.scenarios<{scenarios:{id:string;name:string;description:string;is_active:boolean;generated_at:string}[]}>().then((value) => value.scenarios.map((item) => ({ scenarioId: item.id, name: item.name, description: item.description, status: item.is_active ? "ACTIVE" : "AVAILABLE", activatedAt: item.is_active ? item.generated_at : null })));
   return mockResponse(currentScenarios());
 }
 
 export async function activateScenario(scenarioId: string): Promise<Scenario> {
+  if (apiConfig.mode === "fastapi") {
+    const aliases: Record<string, string> = { "SCENARIO-EID-RUSH": "eid_spike", "SCENARIO-NORMAL-DAY": "normal_day", "SCENARIO-CONFLICTING-BALANCE": "conflicting_balance" };
+    const item = await fastApiClient.activateScenario<{id:string;name:string;description:string;generated_at:string}>(aliases[scenarioId] ?? scenarioId);
+    return { scenarioId: item.id, name: item.name, description: item.description, status: "ACTIVE", activatedAt: item.generated_at };
+  }
   await mockDelay();
   findMockOrThrow(scenarios, (scenario) => scenario.scenarioId === scenarioId, "Scenario", scenarioId);
   activeScenarioId = scenarioId;

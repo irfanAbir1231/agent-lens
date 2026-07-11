@@ -7,6 +7,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     CheckConstraint,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -40,6 +41,23 @@ class Scenario(Base):
     is_synthetic_data: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True
     )
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+
+
+class DatasetManifestRecord(Base):
+    __tablename__ = "dataset_manifests"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source: Mapped[str] = mapped_column(String(128), nullable=False)
+    seed: Mapped[int] = mapped_column(Integer, nullable=False)
+    hourly_row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    transaction_row_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    dataset_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    transaction_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    feature_schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     metadata_json: Mapped[dict[str, Any]] = mapped_column(
         JSON, nullable=False, default=dict
     )
@@ -132,6 +150,59 @@ class Transaction(Base):
     )
 
     agent: Mapped[Agent] = relationship(back_populates="transactions")
+
+
+class HistoricalLiquidityObservation(Base):
+    __tablename__ = "historical_liquidity_observations"
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_id",
+            "observed_at",
+            "agent_id",
+            "provider",
+            name="uq_dataset_observation_agent_provider",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("dataset_manifests.id"), nullable=False, index=True
+    )
+    observed_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), nullable=False, index=True
+    )
+    agent_id: Mapped[str] = mapped_column(
+        ForeignKey("agents.id"), nullable=False, index=True
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    cash_in_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    cash_out_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    provider_balance_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    shared_cash_minor: Mapped[int] = mapped_column(Integer, nullable=False)
+    feed_delay_minutes: Mapped[float] = mapped_column(Float, nullable=False)
+    missing_record_rate: Mapped[float] = mapped_column(Float, nullable=False)
+    balance_consistency_score: Mapped[float] = mapped_column(Float, nullable=False)
+    is_weekend: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_salary_day: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_eid_context: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+
+class ModelVersionRecord(Base):
+    __tablename__ = "model_versions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("dataset_manifests.id"), nullable=False, index=True
+    )
+    model_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    artifact_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    artifact_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    feature_schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    trained_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
 
 
 class PolicySnippet(Base):

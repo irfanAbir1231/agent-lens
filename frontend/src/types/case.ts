@@ -27,4 +27,6 @@ export interface OperationalCase {
   timeline: CaseEvent[];
   notes: CaseNote[];
   humanDecision: HumanDecision | null;
+  backendVersion?: number;
+  backendCapabilities?: { canAcknowledge: boolean; canAddNote: boolean; canDecide: boolean; canEscalate: boolean; canResolve: boolean };
 }

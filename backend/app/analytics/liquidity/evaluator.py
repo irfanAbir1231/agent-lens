@@ -30,6 +30,9 @@ def evaluate_liquidity_target(
     data_quality_limitations: tuple[str, ...],
     recommended_verification_steps: tuple[str, ...],
     allow_forecast: bool,
+    ml_net_outflow_minor: int | None = None,
+    ml_confidence: float | None = None,
+    model_version: str | None = None,
 ) -> LiquidityForecast:
     invalid_balance = features.current_balance_minor < 0
     blocked = not allow_forecast or invalid_balance
@@ -37,6 +40,8 @@ def evaluate_liquidity_target(
     fallback_reason: str | None = None
     if blocked:
         rate = 0.0
+    elif ml_net_outflow_minor is not None:
+        rate = max(0.0, float(ml_net_outflow_minor))
     elif features.recent_transaction_count < features.expected_recent_count:
         fallback_used = True
         fallback_reason = (
@@ -54,6 +59,8 @@ def evaluate_liquidity_target(
     confidence = calculate_confidence(
         features, fallback_used=fallback_used, blocked=blocked
     )
+    if ml_confidence is not None and not blocked:
+        confidence = min(confidence, ml_confidence * features.data_quality_multiplier)
     shortage_minutes = (
         None
         if blocked
@@ -105,6 +112,12 @@ def evaluate_liquidity_target(
         fallback_reason=fallback_reason,
         forecast_blocked=blocked,
         recommended_verification_steps=recommended_verification_steps,
+        prediction_source=(
+            "XGBOOST_MODEL"
+            if ml_net_outflow_minor is not None and not blocked
+            else "DETERMINISTIC_FALLBACK"
+        ),
+        model_version=model_version or METHOD_VERSION,
     )
 
 

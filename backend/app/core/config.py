@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-5.4-mini"
     openai_timeout_seconds: float = Field(default=20.0, gt=0.0, le=60.0)
+    model_artifact_dir: Path = BACKEND_ROOT / "artifacts"
+    model_bundle_name: str = "agentlens_liquidity_forecast_bundle.joblib"
+    anomaly_bundle_name: str = "agentlens_anomaly_model.joblib"
+    model_required: bool = False
 
     @field_validator("cors_origins", mode="before")
     @classmethod

@@ -10,6 +10,7 @@ from app.api.v1.endpoints.forecast import router as forecast_router
 from app.api.v1.endpoints.health import router as health_router
 from app.api.v1.endpoints.metrics import router as metrics_router
 from app.api.v1.endpoints.overview import router as overview_router
+from app.api.v1.endpoints.scenarios import router as scenarios_router
 
 router = APIRouter()
 router.include_router(health_router)
@@ -21,4 +22,5 @@ router.include_router(alerts_router)
 router.include_router(analysis_router)
 router.include_router(cases_router)
 router.include_router(audit_events_router)
+router.include_router(scenarios_router)
 router.include_router(agents_router)

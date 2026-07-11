@@ -9,8 +9,10 @@ from app.analytics.anomaly.evaluator import build_peer_baseline, evaluate_provid
 from app.analytics.anomaly.models import DETECTOR_VERSION, AnomalyEvaluation
 from app.analytics.data_quality.evaluator import DataQualityEvaluator
 from app.analytics.risk.evaluator import fuse_risk
+from app.core.config import get_settings
 from app.core.errors import NotFoundError
 from app.db.models import Scenario
+from app.ml.runtime import AnomalyModelRuntime
 from app.repositories.alert_repository import AlertRepository
 from app.repositories.analysis_repository import AnalysisRepository
 from app.schemas.alert import AlertDetail, AlertListResponse, AlertSummary
@@ -35,6 +37,10 @@ class AlertService:
         self._forecasts = ForecastService(session)
         self._quality = DataQualityEvaluator()
         self._retrieval = RetrievalService(self._repository)
+        settings = get_settings()
+        self._anomaly_model = AnomalyModelRuntime(
+            settings.model_artifact_dir / settings.anomaly_bundle_name
+        )
 
     def list_alerts(
         self,
@@ -126,6 +132,7 @@ class AlertService:
                     baseline=baselines[source.provider],
                     evaluated_at=scenario.generated_at,
                     is_eid=is_eid,
+                    ml_anomaly_score=self._anomaly_score(source),
                 )
                 forecast = forecast_by_provider[source.provider]
                 risk = fuse_risk(
@@ -167,6 +174,25 @@ class AlertService:
                 )
         results.sort(key=lambda item: (item.priority, item.id))
         return scenario, results
+
+    def _anomaly_score(self, source: object) -> float | None:
+        if not self._anomaly_model.available:
+            return None
+        transactions = getattr(source, "transactions", ()) or ()
+        rows = [
+            {
+                "Event_Time": item.occurred_at,
+                "Provider": source.provider.value,
+                "Transaction_Type": item.transaction_type.value,
+                "Amount": item.amount_minor,
+                "Status": item.status.value,
+            }
+            for item in transactions
+        ]
+        try:
+            return self._anomaly_model.score(rows)
+        except (FileNotFoundError, KeyError, TypeError, ValueError):
+            return None
 
     def _overlay_persisted(
         self, scenario_id: str, current: list[AlertDetail]

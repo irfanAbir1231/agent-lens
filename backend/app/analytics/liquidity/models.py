@@ -87,3 +87,5 @@ class LiquidityForecast:
     fallback_reason: str | None
     forecast_blocked: bool
     recommended_verification_steps: tuple[str, ...]
+    prediction_source: str
+    model_version: str

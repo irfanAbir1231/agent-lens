@@ -1,4 +1,22 @@
-import { httpClient,type JsonValue } from "./http-client";
-const id=(value:string)=>encodeURIComponent(value);
-export const fastApiClient={
- health:()=>httpClient.get<unknown>("/api/v1/health"),overview:()=>httpClient.get<unknown>("/api/v1/overview"),agents:()=>httpClient.get<unknown>("/api/v1/agents"),agent:(agentId:string)=>httpClient.get<unknown>(`/api/v1/agents/${id(agentId)}`),forecasts:(agentId:string)=>httpClient.get<unknown>(`/api/v1/agents/${id(agentId)}/forecasts`),analyze:(agentId:string)=>httpClient.post<unknown>(`/api/v1/analysis/agents/${id(agentId)}`,{}),alerts:()=>httpClient.get<unknown>("/api/v1/alerts"),alert:(alertId:string)=>httpClient.get<unknown>(`/api/v1/alerts/${id(alertId)}`),cases:()=>httpClient.get<unknown>("/api/v1/cases"),case:(caseId:string)=>httpClient.get<unknown>(`/api/v1/cases/${id(caseId)}`),caseDecision:(caseId:string,decision:JsonValue)=>httpClient.post<unknown>(`/api/v1/cases/${id(caseId)}/decision`,decision),dataQuality:()=>httpClient.get<unknown>("/api/v1/data-quality"),scenarios:()=>httpClient.get<unknown>("/api/v1/scenarios"),activateScenario:(scenarioId:string)=>httpClient.post<unknown>(`/api/v1/scenarios/${id(scenarioId)}/activate`,{}),resetScenario:()=>httpClient.post<unknown>("/api/v1/scenarios/reset",{}),metrics:()=>httpClient.get<unknown>("/api/v1/metrics"),auditEvents:()=>httpClient.get<unknown>("/api/v1/audit-events")};
+import { httpClient, type JsonValue } from "./http-client";
+
+const id = (value: string) => encodeURIComponent(value);
+
+export const fastApiClient = {
+  health: <T>() => httpClient.get<T>("/api/v1/health"),
+  overview: <T>() => httpClient.get<T>("/api/v1/overview"),
+  agents: <T>() => httpClient.get<T>("/api/v1/agents?page_size=100"),
+  agent: <T>(agentId: string) => httpClient.get<T>(`/api/v1/agents/${id(agentId)}`),
+  forecast: <T>(agentId: string) => httpClient.get<T>(`/api/v1/agents/${id(agentId)}/forecast`),
+  analyze: <T>(agentId: string, key: string) => httpClient.post<T>(`/api/v1/agents/${id(agentId)}/analysis`, {}, { "Idempotency-Key": key }),
+  alerts: <T>() => httpClient.get<T>("/api/v1/alerts?page_size=100"),
+  alert: <T>(alertId: string) => httpClient.get<T>(`/api/v1/alerts/${id(alertId)}`),
+  cases: <T>() => httpClient.get<T>("/api/v1/cases?page_size=100"),
+  case: <T>(caseId: string) => httpClient.get<T>(`/api/v1/cases/${id(caseId)}`),
+  caseAction: <T>(caseId: string, action: string, body: JsonValue) => httpClient.post<T>(`/api/v1/cases/${id(caseId)}/${action}`, body),
+  dataQuality: <T>() => httpClient.get<T>("/api/v1/data-quality?page_size=100"),
+  metrics: <T>() => httpClient.get<T>("/api/v1/metrics"),
+  auditEvents: <T>() => httpClient.get<T>("/api/v1/audit-events?page_size=100"),
+  scenarios: <T>() => httpClient.get<T>("/api/v1/scenarios"),
+  activateScenario: <T>(scenarioId: string) => httpClient.post<T>(`/api/v1/scenarios/${id(scenarioId)}/activate`, {}),
+};

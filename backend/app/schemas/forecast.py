@@ -68,6 +68,8 @@ class ProviderLiquidityForecast(AgentLensSchema):
     fallback_reason: str | None
     forecast_blocked: bool
     recommended_verification_steps: list[str]
+    prediction_source: Literal["XGBOOST_MODEL", "DETERMINISTIC_FALLBACK"]
+    model_version: str
 
 
 class SharedCashLiquidityForecast(AgentLensSchema):
@@ -92,6 +94,8 @@ class SharedCashLiquidityForecast(AgentLensSchema):
     fallback_reason: str | None
     forecast_blocked: bool
     recommended_verification_steps: list[str]
+    prediction_source: Literal["XGBOOST_MODEL", "DETERMINISTIC_FALLBACK"]
+    model_version: str
 
 
 class LiquidityForecastResponse(AgentLensSchema):

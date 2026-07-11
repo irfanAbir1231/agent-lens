@@ -1,0 +1,31 @@
+{
+  "dataset_id": "agentlens-synthetic-75d-v1",
+  "generated_at": "2026-07-11T18:36:58.476011+00:00",
+  "seed": 42,
+  "hourly_row_count": 54000,
+  "transaction_row_count": 36898,
+  "dataset_sha256": "c8ec4788af2b5554b55e6bf72ce2a9d2c450cc51b797962e167a6ff1f4140256",
+  "transaction_sha256": "63eed866f52aa6dc2eb7af2307ec1e39540936175b3ca798dd71b46aee3d023e",
+  "feature_schema_version": "notebook-features-v1",
+  "model_version": "agentlens-notebook-xgb-iforest-v1",
+  "forecast_artifact": "agentlens_liquidity_forecast_bundle.joblib",
+  "forecast_artifact_sha256": "368776cdf5242b48c855d0a362e63f47d46c10c17acaec0c605527c7323f5cea",
+  "anomaly_artifact": "agentlens_anomaly_model.joblib",
+  "anomaly_artifact_sha256": "7138551b4a3bc744448fc86ab8c725a6bb06f37c0ab5bb6718a28c849922e3ff",
+  "metrics": {
+    "cash_in": {
+      "mae": 1296.6113001957178,
+      "rmse": 2089.2297843965525,
+      "mape_percent": 16.028637237788384
+    },
+    "cash_out": {
+      "mae": 1235.7742509117286,
+      "rmse": 1898.555453292303,
+      "mape_percent": 16.024684074160977
+    },
+    "train_rows": 41700,
+    "test_rows": 7230,
+    "cutoff": "2026-03-06T22:00:00+00:00"
+  },
+  "is_synthetic_data": true
+}

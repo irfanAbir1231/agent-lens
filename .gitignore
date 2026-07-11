@@ -31,6 +31,7 @@ backend/coverage.xml
 backend/build/
 backend/dist/
 backend/*.egg-info/
+backend/artifacts/*.csv
 
 # Local databases
 *.db

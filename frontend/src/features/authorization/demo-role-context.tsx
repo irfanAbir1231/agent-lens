@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { currentUser } from "@/mocks/current-user";
 import type { UserRole } from "@/types";
+import { setActiveActor } from "@/lib/api/actor";
 import { getRoleDescription } from "./role-description";
 import { getRoleLabel } from "./role-label";
 
@@ -17,7 +18,11 @@ interface DemoRoleContextValue {
 const DemoRoleContext = createContext<DemoRoleContextValue | null>(null);
 
 export function DemoRoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<UserRole>(currentUser.role);
+  const [role, updateRole] = useState<UserRole>(currentUser.role);
+  const setRole = (nextRole: UserRole) => {
+    setActiveActor(nextRole);
+    updateRole(nextRole);
+  };
   const value = useMemo(() => ({ role, roleLabel: getRoleLabel(role), roleDescription: getRoleDescription(role), setRole, resetRole: () => setRole(currentUser.role) }), [role]);
 
   return <DemoRoleContext.Provider value={value}>{children}</DemoRoleContext.Provider>;

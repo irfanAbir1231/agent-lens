@@ -1,6 +1,17 @@
 import { cases } from "@/mocks";
 import type { OperationalCase } from "@/types";
 import { mockFindResponse, mockResponse } from "./mock-client";
+import { apiConfig } from "./config";
+import { fastApiClient } from "./fastapi-client";
+import type { CaseDetailDto, CaseListDto, CaseSummaryDto } from "./backend-dto";
+
+const mapCase = (item: CaseSummaryDto, detail?: CaseDetailDto): OperationalCase => ({ caseId: item.id, alertId: item.alert_id, agentId: item.agent_id, title: `${item.agent_id} operational review`, status: item.status as OperationalCase["status"], recipient: "Backend-authorized review team", owner: item.assigned_to ?? "Unassigned", priority: item.severity as OperationalCase["priority"], slaRemainingMinutes: Math.max(0, 60 - Math.floor((Date.now() - new Date(item.created_at).getTime()) / 60_000)), timeline: (detail?.timeline ?? []).map((event) => ({ eventId: event.id, occurredAt: event.created_at, action: event.action, actorName: event.actor_id })), notes: (detail?.notes ?? []).map((note) => ({ noteId: note.id, createdAt: note.created_at, authorName: note.author_id, body: note.body })), humanDecision: item.latest_decision as OperationalCase["humanDecision"], backendVersion: item.version, backendCapabilities: detail ? { canAcknowledge: detail.capabilities.can_acknowledge, canAddNote: detail.capabilities.can_add_note, canDecide: detail.capabilities.can_decide, canEscalate: detail.capabilities.can_escalate, canResolve: detail.capabilities.can_resolve } : undefined });
+
+export async function mutateCase(caseId: string, action: string, body: Record<string, string | number | { title: string; action_category: string }[]>): Promise<OperationalCase | null> {
+  if (apiConfig.mode === "mock") return null;
+  const item = await fastApiClient.caseAction<CaseDetailDto>(caseId, action, body);
+  return mapCase(item, item);
+}
 
 const primaryCase = cases.find((item) => item.caseId === "CASE-8017");
 const caseRecords: OperationalCase[] = primaryCase ? [
@@ -15,10 +26,13 @@ const caseRecords: OperationalCase[] = primaryCase ? [
   { ...primaryCase, caseId: "CASE-8021", alertId: "ALT-2043", agentId: "AGENT-176", title: "bKash balance coverage needs monitoring", status: "ASSIGNED", recipient: "bKash Operations", owner: "Field Officer 8", priority: "HIGH", slaRemainingMinutes: 54 },
 ] : [];
 
-export function getCases(): Promise<OperationalCase[]> {
-  return mockResponse(caseRecords);
+export async function getCases(): Promise<OperationalCase[]> {
+  if (apiConfig.mode === "mock") return mockResponse(caseRecords);
+  return (await fastApiClient.cases<CaseListDto>()).cases.map((item) => mapCase(item));
 }
 
-export function getCase(caseId: string): Promise<OperationalCase> {
-  return mockFindResponse(caseRecords, (item) => item.caseId === caseId, "Case", caseId);
+export async function getCase(caseId: string): Promise<OperationalCase> {
+  if (apiConfig.mode === "mock") return mockFindResponse(caseRecords, (item) => item.caseId === caseId, "Case", caseId);
+  const item = await fastApiClient.case<CaseDetailDto>(caseId);
+  return mapCase(item, item);
 }

@@ -19,7 +19,9 @@ from app.analytics.liquidity.models import (
     LiquidityForecast,
     ScenarioContext,
 )
+from app.core.config import get_settings
 from app.core.errors import NotFoundError
+from app.ml.runtime import ModelPrediction, ModelRuntime
 from app.repositories.forecast_repository import ForecastRepository
 from app.schemas.data_quality import DataQualityWindow
 from app.schemas.enums import ScenarioId
@@ -37,6 +39,10 @@ class ForecastService:
     def __init__(self, session: Session) -> None:
         self._repository = ForecastRepository(session)
         self._quality = DataQualityEvaluator()
+        settings = get_settings()
+        self._model = ModelRuntime(
+            settings.model_artifact_dir / settings.model_bundle_name
+        )
 
     def get_forecast(self, *, agent_id: str) -> LiquidityForecastResponse:
         # The scenario clock is authoritative for deterministic synthetic analysis.
@@ -64,6 +70,11 @@ class ForecastService:
                 data_quality_multiplier=provider_quality.confidence_multiplier,
                 feed_delay_minutes=provider_quality.measured_evidence.feed_delay_minutes,
             )
+            prediction = self._model_prediction(
+                agent_id=agent_id,
+                provider=provider_source.provider.value,
+                allow_forecast=provider_quality.allow_forecast,
+            )
             provider_forecasts.append(
                 evaluate_liquidity_target(
                     agent_id=agent_id,
@@ -79,6 +90,13 @@ class ForecastService:
                         for issue in provider_quality.issues
                     ),
                     allow_forecast=provider_quality.allow_forecast,
+                    ml_net_outflow_minor=(
+                        max(0, prediction.cash_out_minor - prediction.cash_in_minor)
+                        if prediction is not None
+                        else None
+                    ),
+                    ml_confidence=(prediction.confidence if prediction else None),
+                    model_version=(prediction.model_version if prediction else None),
                 )
             )
         shared_allowed = all(item.allow_forecast for item in quality.provider_results)
@@ -137,6 +155,19 @@ class ForecastService:
             provider_forecasts=[_provider_schema(item) for item in provider_forecasts],
         )
 
+    def _model_prediction(
+        self, *, agent_id: str, provider: str, allow_forecast: bool
+    ) -> ModelPrediction | None:
+        if not allow_forecast or not self._model.available:
+            return None
+        rows = self._repository.list_ml_observations(
+            agent_id=agent_id, provider=provider
+        )
+        try:
+            return self._model.predict(rows)
+        except (FileNotFoundError, KeyError, TypeError, ValueError):
+            return None
+
 
 def _scenario_context(
     evaluated_at: datetime, metadata: dict[str, Any]
@@ -184,6 +215,8 @@ def _common(item: LiquidityForecast) -> dict[str, object]:
         "fallback_reason": item.fallback_reason,
         "forecast_blocked": item.forecast_blocked,
         "recommended_verification_steps": list(item.recommended_verification_steps),
+        "prediction_source": item.prediction_source,
+        "model_version": item.model_version,
     }
 
 

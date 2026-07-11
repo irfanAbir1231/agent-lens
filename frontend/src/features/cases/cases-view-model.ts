@@ -33,6 +33,8 @@ export interface CaseDetailViewModel {
   timeline: CaseEvent[];
   notes: CaseNote[];
   humanDecision: HumanDecision | null;
+  backendVersion: number;
+  backendCapabilities?: { canAcknowledge: boolean; canAddNote: boolean; canDecide: boolean; canEscalate: boolean; canResolve: boolean };
   advisory: { summary: string; assessment: string; recommendations: { rank: number; title: string; description: string }[]; disclaimer: string };
 }
 
@@ -67,6 +69,8 @@ export async function loadCaseDetailViewModel(caseId: string): Promise<CaseDetai
     timeline: record.timeline,
     notes: record.notes,
     humanDecision: record.humanDecision,
+    backendVersion: record.backendVersion ?? 1,
+    backendCapabilities: record.backendCapabilities,
     advisory: {
       summary: analysis.advisory.summary,
       assessment: analysis.advisory.operationalAssessment,

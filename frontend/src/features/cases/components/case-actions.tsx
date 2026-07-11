@@ -7,19 +7,19 @@ import { ResolutionForm } from "./resolution-form";
 import { useDemoRole } from "@/features/authorization/demo-role-context";
 import { getActionAvailability } from "@/features/authorization/action-availability";
 
-interface Props { status: CaseStatus; onAcknowledge: () => void; onAddNote: (note: string) => void; onEscalate: (reason: string) => void; onResolve: (resolution: string, note: string) => void }
+interface Props { status: CaseStatus; capabilities?: { canAcknowledge: boolean; canAddNote: boolean; canEscalate: boolean; canResolve: boolean }; onAcknowledge: () => void; onAddNote: (note: string) => void; onEscalate: (reason: string) => void; onResolve: (resolution: string, note: string) => void }
 
-export function CaseActions({ status, onAcknowledge, onAddNote, onEscalate, onResolve }: Props) {
+export function CaseActions({ status, capabilities, onAcknowledge, onAddNote, onEscalate, onResolve }: Props) {
   const [form, setForm] = useState<"note" | "escalate" | "resolve" | null>(null);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const { role } = useDemoRole();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const resolved = status === "RESOLVED";
-  const acknowledgeAllowed = getActionAvailability(role,"ACKNOWLEDGE_CASE").available;
-  const noteAllowed = getActionAvailability(role,"ADD_CASE_NOTE").available;
-  const escalateAllowed = getActionAvailability(role,"ESCALATE_CASE").available;
-  const resolveAllowed = getActionAvailability(role,"RESOLVE_OPERATIONAL_CASE").available;
+  const acknowledgeAllowed = capabilities?.canAcknowledge ?? getActionAvailability(role,"ACKNOWLEDGE_CASE").available;
+  const noteAllowed = capabilities?.canAddNote ?? getActionAvailability(role,"ADD_CASE_NOTE").available;
+  const escalateAllowed = capabilities?.canEscalate ?? getActionAvailability(role,"ESCALATE_CASE").available;
+  const resolveAllowed = capabilities?.canResolve ?? getActionAvailability(role,"RESOLVE_OPERATIONAL_CASE").available;
   useEffect(() => { if (form === "note" || form === "escalate") textRef.current?.focus(); }, [form]);
   const submitText = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (!text.trim()) { setError(form === "note" ? "A note is required." : "An escalation reason is required."); return; } if (form === "note") onAddNote(text.trim()); else onEscalate(text.trim()); setText(""); setError(""); setForm(null); };
   const openForm = (nextForm: "note" | "escalate" | "resolve") => { setError(""); setText(""); setForm(nextForm); };

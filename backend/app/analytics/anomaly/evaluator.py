@@ -41,6 +41,7 @@ def evaluate_provider(
     baseline: PeerBaseline,
     evaluated_at: datetime,
     is_eid: bool,
+    ml_anomaly_score: float | None = None,
 ) -> AnomalyEvaluation:
     start_at = evaluated_at - timedelta(minutes=LOOKBACK_MINUTES)
     recent_start = evaluated_at - timedelta(minutes=RECENT_MINUTES)
@@ -72,6 +73,17 @@ def evaluate_provider(
         )
 
     evidence: list[Evidence] = []
+    if ml_anomaly_score is not None and ml_anomaly_score >= 0.5:
+        evidence.append(
+            Evidence(
+                "ISOLATION_FOREST_SCORE",
+                "The offline Isolation Forest model identified transaction-level "
+                "deviation from the synthetic training baseline.",
+                ml_anomaly_score,
+                0.5,
+                min(0.3, ml_anomaly_score * 0.3),
+            )
+        )
     count_ratio = _ratio(recent_count, baseline.recent_count_median)
     volume_ratio = _ratio(volume, baseline.recent_volume_median)
     if count_ratio >= 1.3:

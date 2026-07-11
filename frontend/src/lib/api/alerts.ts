@@ -1,6 +1,13 @@
 import { alerts } from "@/mocks";
 import type { Alert } from "@/types";
 import { mockFindResponse, mockResponse } from "./mock-client";
+import { apiConfig } from "./config";
+import { fastApiClient } from "./fastapi-client";
+import type { AlertDetailDto, AlertListDto, AlertSummaryDto } from "./backend-dto";
+
+const title = (item: AlertSummaryDto) => `${item.provider ?? "Agent"} ${item.alert_type.toLowerCase().replaceAll("_", " ")} requires human review`;
+const mapSummary = (item: AlertSummaryDto): Alert => ({ alertId: item.id, agentId: item.agent_id, providerId: item.provider ?? "NAGAD", title: title(item), alertType: item.alert_type as Alert["alertType"], severity: item.severity as Alert["severity"], confidence: item.confidence, status: item.status as Alert["status"], summary: "Backend analysis identified an operational signal that requires contextual human review.", disclaimer: "Decision support only. Verify operational context before taking action.", evidence: [], possibleLegitimateExplanations: [], limitations: [], createdAt: item.created_at });
+const mapDetail = (item: AlertDetailDto): Alert => ({ ...mapSummary(item), summary: item.risk.reasons.join(" ") || "Operational review required.", evidence: item.anomaly.evidence.map((evidence) => ({ code: evidence.code, label: evidence.description, value: String(evidence.measured_value), interpretation: "Measured backend evidence; human context is required." })), possibleLegitimateExplanations: item.anomaly.legitimate_explanations, limitations: [...item.limitations, ...item.anomaly.limitations] });
 
 const primaryAlert = alerts.find((alert) => alert.alertId === "ALT-2039");
 const alertRecords: Alert[] = primaryAlert ? [
@@ -25,10 +32,12 @@ const alertRecords: Alert[] = primaryAlert ? [
   { ...primaryAlert, alertId: "ALT-2045", providerId: "ROCKET", agentId: "AGENT-055", title: "Rocket service pressure requires area escalation", alertType: "LIQUIDITY_PRESSURE", severity: "CRITICAL", confidence: 0.81, status: "ESCALATED", createdAt: "2026-07-11T07:45:00Z" },
 ] : [];
 
-export function getAlerts(): Promise<Alert[]> {
-  return mockResponse(alertRecords);
+export async function getAlerts(): Promise<Alert[]> {
+  if (apiConfig.mode === "mock") return mockResponse(alertRecords);
+  return (await fastApiClient.alerts<AlertListDto>()).alerts.map(mapSummary);
 }
 
-export function getAlert(alertId: string): Promise<Alert> {
-  return mockFindResponse(alertRecords, (alert) => alert.alertId === alertId, "Alert", alertId);
+export async function getAlert(alertId: string): Promise<Alert> {
+  if (apiConfig.mode === "mock") return mockFindResponse(alertRecords, (alert) => alert.alertId === alertId, "Alert", alertId);
+  return mapDetail(await fastApiClient.alert<AlertDetailDto>(alertId));
 }
