@@ -64,7 +64,7 @@ def test_healthy_provider_has_full_confidence_and_permissions() -> None:
     )
 
     assert result.status == DataHealthStatus.HEALTHY
-    assert result.confidence_multiplier == 1.0
+    assert result.confidence_multiplier == pytest.approx(1.0)
     assert result.allow_forecast is True
     assert result.allow_ai_advisory is True
     assert not result.issues
@@ -87,7 +87,7 @@ def test_delayed_feed_thresholds_are_deterministic(
     result = DataQualityEvaluator().evaluate_provider(source, evaluated_at=EVALUATED_AT)
 
     assert result.status == DataHealthStatus.DELAYED
-    assert result.component_scores.freshness == expected_freshness
+    assert result.component_scores.freshness == pytest.approx(expected_freshness)
     assert result.allow_forecast is allow_forecast
     assert result.allow_ai_advisory is False
     assert issue_codes(source) == {DataQualityIssueCode.FEED_DELAYED}
@@ -104,9 +104,9 @@ def test_zero_transactions_with_feed_and_balance_is_incomplete() -> None:
         DataQualityIssueCode.RECENT_WINDOW_INCOMPLETE,
         DataQualityIssueCode.SAMPLE_SIZE_LOW,
     }
-    assert result.component_scores.completeness == 0.45
-    assert result.component_scores.timeliness == 0.75
-    assert result.confidence_multiplier == 0.84
+    assert result.component_scores.completeness == pytest.approx(0.45)
+    assert result.component_scores.timeliness == pytest.approx(0.75)
+    assert result.confidence_multiplier == pytest.approx(0.84)
     assert result.allow_forecast is True
     assert result.allow_ai_advisory is False
 
@@ -185,7 +185,7 @@ def test_duplicate_id_and_record_are_conflicting_and_penalized() -> None:
         DataQualityIssueCode.DUPLICATE_TRANSACTION_ID,
         DataQualityIssueCode.DUPLICATE_TRANSACTION_RECORD,
     }
-    assert result.component_scores.consistency == 0.35
+    assert result.component_scores.consistency == pytest.approx(0.35)
     assert result.measured_evidence.duplicate_transaction_ids == ("DUPLICATE",)
     assert result.measured_evidence.duplicate_transaction_record_count == 1
     assert result.allow_forecast is False
@@ -193,9 +193,12 @@ def test_duplicate_id_and_record_are_conflicting_and_penalized() -> None:
 
 def test_unordered_timestamps_are_not_flagged_without_ingestion_order() -> None:
     transactions = list(healthy_source().transactions or ())
-    transactions[1] = replace(
-        transactions[1], occurred_at=EVALUATED_AT - timedelta(minutes=5)
-    )
+    first, second, *remaining = transactions
+    transactions = [
+        first,
+        replace(second, occurred_at=EVALUATED_AT - timedelta(minutes=5)),
+        *remaining,
+    ]
     source = replace(healthy_source(), transactions=tuple(transactions))
 
     result = DataQualityEvaluator().evaluate_provider(source, evaluated_at=EVALUATED_AT)
@@ -208,10 +211,13 @@ def test_unordered_timestamps_are_not_flagged_without_ingestion_order() -> None:
 
 def test_future_timestamp_and_monetary_rules_capture_measured_evidence() -> None:
     transactions = list(healthy_source().transactions or ())
-    transactions[1] = replace(
-        transactions[1], occurred_at=EVALUATED_AT + timedelta(minutes=2)
-    )
-    transactions[2] = replace(transactions[2], amount_minor=5_000_001)
+    first, second, third, *remaining = transactions
+    transactions = [
+        first,
+        replace(second, occurred_at=EVALUATED_AT + timedelta(minutes=2)),
+        replace(third, amount_minor=5_000_001),
+        *remaining,
+    ]
     transactions.append(transaction(6, minutes_ago=55))
     source = replace(healthy_source(), transactions=tuple(transactions))
 
@@ -222,8 +228,8 @@ def test_future_timestamp_and_monetary_rules_capture_measured_evidence() -> None
         DataQualityIssueCode.FUTURE_TIMESTAMP,
         DataQualityIssueCode.INVALID_MONETARY_VALUE,
     }
-    assert result.component_scores.timeliness == 1
-    assert result.component_scores.validity == 0
+    assert result.component_scores.timeliness == pytest.approx(1.0)
+    assert result.component_scores.validity == pytest.approx(0.0)
     assert result.measured_evidence.timestamp_order_check_available is False
     assert result.measured_evidence.out_of_order_timestamp_count is None
     assert result.measured_evidence.future_timestamp_count == 1
@@ -237,8 +243,8 @@ def test_balance_conflict_has_highest_consistency_penalty() -> None:
 
     assert result.status == DataHealthStatus.CONFLICTING
     assert issue_codes(source) == {DataQualityIssueCode.BALANCE_CONFLICT}
-    assert result.component_scores.consistency == 0
-    assert result.confidence_multiplier == 0.8
+    assert result.component_scores.consistency == pytest.approx(0.0)
+    assert result.confidence_multiplier == pytest.approx(0.8)
 
 
 def test_status_precedence_prefers_conflicting_over_unavailable() -> None:
@@ -269,7 +275,7 @@ def test_agent_rollup_uses_worst_minimum_and_any_provider_semantics() -> None:
     result = DataQualityEvaluator().evaluate_agent(source, evaluated_at=EVALUATED_AT)
 
     assert result.overall_status == DataHealthStatus.UNAVAILABLE
-    assert result.overall_confidence_multiplier == 0.7
+    assert result.overall_confidence_multiplier == pytest.approx(0.7)
     assert result.allow_forecast is True
     assert result.allow_ai_advisory is True
 

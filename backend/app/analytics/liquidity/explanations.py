@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from itertools import islice
+
 from app.analytics.liquidity.models import (
     FactorEffect,
     ForecastFactor,
@@ -59,4 +61,4 @@ def build_factors(
                 effect=FactorEffect.LIMITS_CONFIDENCE,
             )
         )
-    return tuple(factors[:4])
+    return tuple(islice(factors, 4))

@@ -69,7 +69,7 @@ async def test_metrics_expose_snapshots_and_persisted_workflow_only(
         body = response.json()
         assert response.status_code == 200
         assert body["forecast"]["sample_count"] == 8
-        assert body["anomaly"]["f1"] == 1.0
+        assert body["anomaly"]["f1"] == pytest.approx(1.0)
         assert body["ai"]["version"] == PIPELINE_VERSION
         assert body["ai"]["failed_count"] == 1
         assert body["ai"]["fallback_count"] == 1
