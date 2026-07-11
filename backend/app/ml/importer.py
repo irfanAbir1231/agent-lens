@@ -17,7 +17,6 @@ from app.db.models import (
     ModelVersionRecord,
     ProviderBalance,
     ProviderFeedState,
-    Transaction,
 )
 
 
@@ -26,6 +25,12 @@ def import_artifact_dataset(
 ) -> dict[str, object]:
     manifest = _manifest(artifact_dir / "dataset_manifest.json")
     hourly = pd.read_csv(artifact_dir / "agentlens_hourly_liquidity.csv")
+    # transactions.csv is only used for row-count validation against the
+    # manifest. It is not written to the Transaction table: that table is
+    # owned by the demo-scenario seeder (app/db/seed/service.py), which
+    # anchors "recent" transactions to the active scenario's generated_at.
+    # Writing this multi-week historical dataset into the same table would
+    # blow away that recency, breaking data-quality freshness checks.
     transactions = pd.read_csv(artifact_dir / "agentlens_transactions.csv")
     _validate_counts(manifest, hourly, transactions)
     with session_factory() as session:
@@ -34,8 +39,6 @@ def import_artifact_dataset(
         session.add(_manifest_record(manifest))
         session.flush()
         _insert_observations(session, str(manifest["dataset_id"]), hourly)
-        _replace_transactions(session, transactions)
-        _update_current_state(session, hourly)
         session.add_all(_model_records(manifest))
         session.commit()
     return {
@@ -194,79 +197,6 @@ def _insert_observations(
             mappings.clear()
     if mappings:
         session.bulk_insert_mappings(HistoricalLiquidityObservation, mappings)
-
-
-def _replace_transactions(session: Session, frame: pd.DataFrame) -> None:
-    session.execute(delete(Transaction))
-    mappings = []
-    for row in frame.to_dict(orient="records"):
-        injected = bool(row["Injected_Review_Pattern"])
-        mappings.append(
-            {
-                "id": str(row["Transaction_ID"]),
-                "agent_id": str(row["Agent_ID"]),
-                "provider": str(row["Provider"]),
-                "transaction_type": str(row["Transaction_Type"]),
-                "amount_minor": int(row["Amount"]),
-                "status": str(row["Status"]),
-                "synthetic_account_reference": str(row["Synthetic_Account_ID"]),
-                "occurred_at": _datetime(str(row["Event_Time"])),
-                "repeated_amount": injected,
-                "velocity_flag": injected,
-                "metadata_json": {
-                    "source": "model1.ipynb-derived",
-                    "injected_review_pattern": injected,
-                },
-            }
-        )
-        if len(mappings) == 2_000:
-            session.bulk_insert_mappings(Transaction, mappings)
-            mappings.clear()
-    if mappings:
-        session.bulk_insert_mappings(Transaction, mappings)
-
-
-def _update_current_state(session: Session, hourly: pd.DataFrame) -> None:
-    latest = (
-        hourly.assign(Timestamp=pd.to_datetime(hourly["Timestamp"], utc=True))
-        .sort_values("Timestamp")
-        .groupby(["Agent_ID", "Provider"], as_index=False)
-        .tail(1)
-    )
-    for row in latest.to_dict(orient="records"):
-        agent_id = str(row["Agent_ID"])
-        provider = str(row["Provider"])
-        balance = session.scalar(
-            select(ProviderBalance).where(
-                ProviderBalance.agent_id == agent_id,
-                ProviderBalance.provider == provider,
-            )
-        )
-        feed = session.scalar(
-            select(ProviderFeedState).where(
-                ProviderFeedState.agent_id == agent_id,
-                ProviderFeedState.provider == provider,
-            )
-        )
-        agent = session.get(Agent, agent_id)
-        observed_at = _datetime(str(row["Timestamp"]))
-        if balance is not None:
-            balance.provider_balance_minor = round(
-                float(row["Provider_E_Money_Balance"])
-            )
-            balance.updated_at = observed_at
-        if feed is not None:
-            delay = float(row["Feed_Delay_Minutes"])
-            feed.last_received_at = observed_at
-            feed.checked_at = observed_at
-            feed.latency_seconds = round(delay * 60)
-            feed.status = "DELAYED" if delay > 15 else "HEALTHY"
-            feed.feed_reported_balance_minor = round(
-                float(row["Provider_E_Money_Balance"])
-            )
-            feed.ledger_balance_minor = feed.feed_reported_balance_minor
-        if agent is not None:
-            agent.shared_cash_minor = round(float(row["Shared_Physical_Cash"]))
 
 
 def _model_records(manifest: dict[str, Any]) -> list[ModelVersionRecord]:
