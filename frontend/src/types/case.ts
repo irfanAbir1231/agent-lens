@@ -1,4 +1,4 @@
-import type { CaseStatus, HumanDecision, ISODateTime, Severity } from "./common";
+import type { CaseStatus, HumanDecision, ISODateTime, ProviderId, Severity, UserRole } from "./common";
 
 export interface CaseEvent {
   eventId: string;
@@ -27,6 +27,22 @@ export interface OperationalCase {
   timeline: CaseEvent[];
   notes: CaseNote[];
   humanDecision: HumanDecision | null;
+  providerId?: ProviderId | null;
+  scopeType?: "PROVIDER" | "AGENT";
+  areaId?: string;
+  requiredRole?: UserRole;
+  updatedAt?: ISODateTime;
+  allowedActions?: string[];
   backendVersion?: number;
-  backendCapabilities?: { canAcknowledge: boolean; canAddNote: boolean; canDecide: boolean; canEscalate: boolean; canResolve: boolean };
+  backendCapabilities?: {
+    canAssign: boolean;
+    canAcknowledge: boolean;
+    canAddNote: boolean;
+    canDecide: boolean;
+    canEscalate: boolean;
+    canResolve: boolean;
+    canDismiss: boolean;
+    assignableUserIds: string[];
+    allowedHumanDecisions: HumanDecision[];
+  };
 }

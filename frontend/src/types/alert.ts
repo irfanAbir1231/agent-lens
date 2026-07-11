@@ -5,7 +5,7 @@ import type { AlertType } from "./risk";
 export interface Alert {
   alertId: string;
   agentId: string;
-  providerId: ProviderId;
+  providerId: ProviderId | null;
   title: string;
   alertType: AlertType;
   severity: Severity;

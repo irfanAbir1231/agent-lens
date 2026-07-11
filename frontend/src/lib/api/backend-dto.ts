@@ -12,6 +12,14 @@ export interface OverviewDto { generated_at: string; total_shared_cash_minor: nu
 export interface ForecastDto {
   generated_at: string;
   data_quality_summary: { provider_results: { provider: ProviderId; confidence_multiplier: number }[] };
+  shared_cash_forecast: {
+    forecast_id: string; agent_id: string; target: "SHARED_CASH"; generated_at: string;
+    current_balance_minor: number; predicted_net_outflow_minor: number;
+    estimated_shortage_minutes: number | null; pressure_level: string; confidence: number;
+    prediction_source: "XGBOOST_MODEL" | "DETERMINISTIC_FALLBACK"; model_version: string;
+    top_factors: { code: string; label: string; effect: string }[];
+    forecast_blocked: boolean; data_quality_limitations: string[];
+  };
   provider_forecasts: {
     forecast_id: string; agent_id: string; provider: ProviderId; generated_at: string;
     current_balance_minor: number; predicted_net_outflow_minor: number;
@@ -23,10 +31,32 @@ export interface ForecastDto {
 export interface AlertSummaryDto { id: string; agent_id: string; provider: ProviderId | null; alert_type: string; status: string; severity: string; confidence: number; created_at: string }
 export interface AlertListDto { alerts: AlertSummaryDto[] }
 export interface AlertDetailDto extends AlertSummaryDto { anomaly: { anomaly_score: number; review_level: string; evaluation_blocked: boolean; evidence: { code: string; description: string; measured_value: number }[]; legitimate_explanations: string[]; limitations: string[]; detector_version: string; data_window_end: string }; risk: { severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; alert_type: "LIQUIDITY_PRESSURE" | "UNUSUAL_ACTIVITY" | "DATA_QUALITY" | "COMBINED_OPERATIONAL_REVIEW"; confidence: number; allow_ai_advisory: boolean; required_human_role: "AGENT" | "PROVIDER_OPERATIONS" | "FIELD_OFFICER" | "RISK_ANALYST" | "AREA_MANAGER" | "MANAGEMENT_VIEWER" | "SYSTEM_ADMIN"; allowed_actions: ("VERIFY_DEMAND" | "CONTACT_PROVIDER_OPERATIONS" | "COMPARE_CONTEXT" | "CONTINUE_MONITORING" | "ESCALATE_REVIEW")[]; prohibited_actions: string[]; rule_version: string; reasons: string[] }; limitations: string[] }
-export interface CaseSummaryDto { id: string; alert_id: string; agent_id: string; status: string; severity: string; priority: number; assigned_to: string | null; latest_decision: string | null; created_at: string; version: number }
+export interface CaseSummaryDto {
+  id: string; alert_id: string; analysis_id: string; agent_id: string; area_id: string;
+  scope: { scope_type: "PROVIDER" | "AGENT"; provider: ProviderId | null };
+  status: string; severity: string; priority: number;
+  required_role: "AGENT" | "PROVIDER_OPERATIONS" | "FIELD_OFFICER" | "RISK_ANALYST" | "AREA_MANAGER" | "MANAGEMENT_VIEWER" | "SYSTEM_ADMIN";
+  assigned_to: string | null; latest_decision: string | null; created_at: string; updated_at: string; version: number;
+}
 export interface CaseListDto { cases: CaseSummaryDto[] }
-export interface CaseDetailDto extends CaseSummaryDto { timeline: { id: string; created_at: string; action: string; actor_id: string | null }[]; notes: { id: string; created_at: string; author_id: string; body: string }[]; capabilities: { can_acknowledge: boolean; can_add_note: boolean; can_decide: boolean; can_escalate: boolean; can_resolve: boolean } }
-export interface MetricsDto { forecast: { mae_net_outflow_minor: number | null; rmse_net_outflow_minor: number | null; shortage_detection_lead_time_minutes: number | null }; anomaly: { precision: number | null; recall: number | null; f1: number | null; false_positive_rate: number | null }; ai: { validation_pass_count: number | null; completed_count: number | null; source_coverage_rate: number | null; one_call_compliance_rate: number | null; fallback_count: number | null; average_latency_ms: number | null }; workflow: { average_acknowledgement_seconds: number | null; average_resolution_seconds: number | null } }
+export interface CaseDetailDto extends CaseSummaryDto {
+  allowed_actions: string[];
+  timeline: { id: string; created_at: string; action: string; actor_id: string | null }[];
+  notes: { id: string; created_at: string; author_id: string; body: string }[];
+  capabilities: {
+    can_assign: boolean; can_acknowledge: boolean; can_add_note: boolean; can_decide: boolean;
+    can_escalate: boolean; can_resolve: boolean; can_dismiss: boolean;
+    assignable_user_ids: string[]; allowed_human_decisions: string[];
+  };
+}
+interface MetricMetadataDto { availability: "AVAILABLE" | "UNAVAILABLE"; sample_count: number; measured_at: string | null; version: string | null }
+export interface MetricsDto {
+  generated_at: string;
+  forecast: MetricMetadataDto & { mae_net_outflow_minor: number | null; rmse_net_outflow_minor: number | null; smape_percent: number | null; shortage_detection_lead_time_minutes: number | null; shortage_lead_time_sample_count: number | null };
+  anomaly: MetricMetadataDto & { precision: number | null; recall: number | null; f1: number | null; false_positive_rate: number | null; contextual_false_positive_rate: number | null; evidence_coverage: number | null };
+  ai: MetricMetadataDto & { validation_pass_count: number | null; completed_count: number | null; source_coverage_rate: number | null; one_call_evidence_available: boolean; one_call_compliance_rate: number | null; fallback_count: number | null; average_latency_ms: number | null };
+  workflow: MetricMetadataDto & { average_acknowledgement_seconds: number | null; average_resolution_seconds: number | null; decision_count: number | null; resolution_rate: number | null; dismissal_rate: number | null; case_counts: Record<string, number> | null };
+}
 export interface DataQualityDto { generated_at: string; results: { agent_id: string; provider_results: { provider: ProviderId; status: DataHealthStatus; confidence_multiplier: number; allow_forecast: boolean; allow_ai_advisory: boolean; component_scores: { freshness: number; completeness: number; consistency: number; validity: number }; issue_codes: string[]; issue_descriptions: string[]; recommended_verification_steps: string[] }[] }[] }
 export interface AuditListDto { events: { id: string; action: string; actor_id: string | null; actor_role: string | null; case_id: string | null; alert_id: string | null; analysis_id: string | null; before_status: string | null; after_status: string | null; metadata: Record<string, string | number | boolean | null>; created_at: string }[] }
 export interface AnalysisDto {

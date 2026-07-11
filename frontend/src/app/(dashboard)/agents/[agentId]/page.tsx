@@ -10,6 +10,7 @@ import { LiquidityForecastChart } from "@/features/agents/components/liquidity-f
 import { ProviderBalanceGrid } from "@/features/agents/components/provider-balance-grid";
 import { RecentTransactions } from "@/features/agents/components/recent-transactions";
 import { RecommendedNextStep } from "@/features/agents/components/recommended-next-step";
+import { SharedCashForecastCard } from "@/features/agents/components/shared-cash-forecast-card";
 import { FrontendApiError } from "@/lib/api/errors";
 
 export default async function AgentDetailPage({ params }: { params: { agentId: string } }) {
@@ -25,6 +26,7 @@ export default async function AgentDetailPage({ params }: { params: { agentId: s
     <div className="space-y-7">
       <AgentHeader header={data.header} />
       <AgentSummary metrics={data.summary} />
+      <SharedCashForecastCard forecast={data.sharedCashForecast} />
       <Panel title="Provider balances" description="Outlet-level balances, coverage, and confidence."><ProviderBalanceGrid providers={data.providerBalances} /></Panel>
       <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
         <Panel title={`${data.forecastChart.providerName} balance forecast`} description="Historical data and a simulated projection with an uncertainty range."><LiquidityForecastChart forecast={data.forecastChart} /></Panel>

@@ -1,7 +1,7 @@
 import { runAgentAnalysis } from "@/lib/api/analysis";
 import { getCase, getCases } from "@/lib/api/cases";
 import { formatDateTime, formatStatus } from "@/lib/formatting";
-import type { CaseEvent, CaseNote, CaseStatus, HumanDecision, Severity } from "@/types";
+import type { CaseEvent, CaseNote, CaseStatus, HumanDecision, OperationalCase, ProviderId, Severity } from "@/types";
 
 export interface CaseListRowViewModel {
   caseId: string;
@@ -34,7 +34,9 @@ export interface CaseDetailViewModel {
   notes: CaseNote[];
   humanDecision: HumanDecision | null;
   backendVersion: number;
-  backendCapabilities?: { canAcknowledge: boolean; canAddNote: boolean; canDecide: boolean; canEscalate: boolean; canResolve: boolean };
+  providerId: ProviderId | null;
+  allowedActions: string[];
+  backendCapabilities?: OperationalCase["backendCapabilities"];
   advisory: { summary: string; assessment: string; recommendations: { rank: number; title: string; description: string }[]; disclaimer: string };
 }
 
@@ -42,14 +44,15 @@ const providerFromRecipient = (recipient: string) => recipient.replace(" Operati
 
 export async function loadCaseListViewModel(): Promise<CaseListViewModel> {
   const records = await getCases();
+  const active = records.filter((record) => record.status !== "RESOLVED" && record.status !== "DISMISSED");
   return {
     metrics: [
-      { label: "Open cases", value: "5", description: "Active human-review workspaces" },
-      { label: "Critical", value: "2", description: "Immediate operational priority" },
-      { label: "Awaiting acknowledgement", value: "1", description: "Newly routed case" },
-      { label: "Escalated", value: "1", description: "External risk review active" },
+      { label: "Open cases", value: String(active.length), description: "Active human-review workspaces" },
+      { label: "Critical", value: String(active.filter((record) => record.priority === "CRITICAL").length), description: "Immediate operational priority" },
+      { label: "Awaiting acknowledgement", value: String(active.filter((record) => record.status === "NEW" || record.status === "ASSIGNED").length), description: "Newly routed cases" },
+      { label: "Escalated", value: String(active.filter((record) => record.status === "ESCALATED").length), description: "External risk review active" },
     ],
-    rows: records.map((record) => ({ caseId: record.caseId, title: record.title, agentId: record.agentId, provider: providerFromRecipient(record.recipient), priority: record.priority, status: record.status, owner: record.owner, sla: `${record.slaRemainingMinutes} min`, updated: formatDateTime(record.timeline[record.timeline.length - 1]?.occurredAt ?? "2026-07-11T08:35:00Z") })),
+    rows: records.map((record) => ({ caseId: record.caseId, title: record.title, agentId: record.agentId, provider: record.providerId ?? providerFromRecipient(record.recipient), priority: record.priority, status: record.status, owner: record.owner, sla: `${record.slaRemainingMinutes} min`, updated: formatDateTime(record.updatedAt ?? record.timeline[record.timeline.length - 1]?.occurredAt ?? new Date().toISOString()) })),
   };
 }
 
@@ -70,6 +73,8 @@ export async function loadCaseDetailViewModel(caseId: string): Promise<CaseDetai
     notes: record.notes,
     humanDecision: record.humanDecision,
     backendVersion: record.backendVersion ?? 1,
+    providerId: record.providerId ?? null,
+    allowedActions: record.allowedActions ?? [],
     backendCapabilities: record.backendCapabilities,
     advisory: {
       summary: analysis.advisory.summary,

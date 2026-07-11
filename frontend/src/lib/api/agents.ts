@@ -1,5 +1,5 @@
 import { agentDetails, agents, forecasts, transactions } from "@/mocks";
-import type { AgentDetail, AgentSummary, LiquidityForecast, Transaction } from "@/types";
+import type { AgentDetail, AgentSummary, LiquidityForecast, SharedCashForecast, Transaction } from "@/types";
 import { findMockOrThrow, mockFindResponse, mockResponse } from "./mock-client";
 import { mockDelay } from "./mock-delay";
 import { apiConfig } from "./config";
@@ -23,11 +23,40 @@ export async function getAgent(agentId: string): Promise<AgentDetail> {
 export async function getAgentForecasts(agentId: string): Promise<LiquidityForecast[]> {
   if (apiConfig.mode === "fastapi") {
     const response = await fastApiClient.forecast<ForecastDto>(agentId);
-    return response.provider_forecasts.map((item) => ({ forecastId: item.forecast_id, agentId: item.agent_id, providerId: item.provider, currentBalanceMinor: item.current_balance_minor, predictedCashOutNext60MinutesMinor: item.predicted_net_outflow_minor, predictedCashInNext60MinutesMinor: 0, predictedNetOutflowNext60MinutesMinor: item.predicted_net_outflow_minor, weightedCashOutRateMinorPerMinute: Math.round(item.predicted_net_outflow_minor / 60), weightedCashInRateMinorPerMinute: 0, netOutflowRateMinorPerMinute: Math.round(item.predicted_net_outflow_minor / 60), estimatedShortageMinutes: item.estimated_shortage_minutes, pressureStatus: pressure(item.pressure_level), modelConfidence: item.confidence, dataQualityConfidence: response.data_quality_summary.provider_results.find((quality) => quality.provider === item.provider)?.confidence_multiplier ?? item.confidence, finalConfidence: item.confidence, predictionSource: item.prediction_source === "XGBOOST_MODEL" ? "MODEL" : "DETERMINISTIC_FALLBACK", drivers: item.top_factors.map((factor) => ({ code: factor.code, description: `${factor.label}`, direction: factor.effect === "INCREASES_PRESSURE" ? "INCREASES_PRESSURE" : factor.effect === "DECREASES_PRESSURE" ? "REDUCES_PRESSURE" : "CONTEXT_ONLY" })), modelVersion: item.model_version, calculatedAt: item.generated_at }));
+    return mapProviderForecasts(response);
   }
   await mockDelay();
   const agent = findMockOrThrow(agentDetails, (item) => item.agentId === agentId, "Agent", agentId);
   return forecasts.filter((forecast) => forecast.agentId === agent.agentId);
+}
+
+export async function getAgentForecastBundle(agentId: string): Promise<{ providerForecasts: LiquidityForecast[]; sharedCashForecast: SharedCashForecast }> {
+  if (apiConfig.mode === "fastapi") {
+    const response = await fastApiClient.forecast<ForecastDto>(agentId);
+    const shared = response.shared_cash_forecast;
+    return {
+      providerForecasts: mapProviderForecasts(response),
+      sharedCashForecast: {
+        forecastId: shared.forecast_id, agentId: shared.agent_id, currentBalanceMinor: shared.current_balance_minor,
+        predictedNetOutflowNext60MinutesMinor: shared.predicted_net_outflow_minor,
+        estimatedShortageMinutes: shared.estimated_shortage_minutes, pressureStatus: pressure(shared.pressure_level),
+        confidence: shared.confidence, predictionSource: shared.prediction_source === "XGBOOST_MODEL" ? "MODEL" : "DETERMINISTIC_FALLBACK",
+        drivers: shared.top_factors.map(mapDriver), modelVersion: shared.model_version, calculatedAt: shared.generated_at,
+        forecastBlocked: shared.forecast_blocked, dataQualityLimitations: shared.data_quality_limitations,
+      },
+    };
+  }
+  const providerForecasts = await getAgentForecasts(agentId);
+  const agent = findMockOrThrow(agentDetails, (item) => item.agentId === agentId, "Agent", agentId);
+  return { providerForecasts, sharedCashForecast: { forecastId: `SHARED-${agentId}`, agentId, currentBalanceMinor: agent.sharedPhysicalCashMinor, predictedNetOutflowNext60MinutesMinor: 0, estimatedShortageMinutes: null, pressureStatus: "HEALTHY", confidence: 0.9, predictionSource: "DETERMINISTIC_FALLBACK", drivers: [], modelVersion: "mock-shared-cash-v1", calculatedAt: new Date().toISOString(), forecastBlocked: false, dataQualityLimitations: [] } };
+}
+
+function mapDriver(factor: { code: string; label: string; effect: string }) {
+  return { code: factor.code, description: factor.label, direction: factor.effect === "INCREASES_PRESSURE" ? "INCREASES_PRESSURE" as const : factor.effect === "DECREASES_PRESSURE" ? "REDUCES_PRESSURE" as const : "CONTEXT_ONLY" as const };
+}
+
+function mapProviderForecasts(response: ForecastDto): LiquidityForecast[] {
+  return response.provider_forecasts.map((item) => ({ forecastId: item.forecast_id, agentId: item.agent_id, providerId: item.provider, currentBalanceMinor: item.current_balance_minor, predictedCashOutNext60MinutesMinor: item.predicted_net_outflow_minor, predictedCashInNext60MinutesMinor: 0, predictedNetOutflowNext60MinutesMinor: item.predicted_net_outflow_minor, weightedCashOutRateMinorPerMinute: Math.round(item.predicted_net_outflow_minor / 60), weightedCashInRateMinorPerMinute: 0, netOutflowRateMinorPerMinute: Math.round(item.predicted_net_outflow_minor / 60), estimatedShortageMinutes: item.estimated_shortage_minutes, pressureStatus: pressure(item.pressure_level), modelConfidence: item.confidence, dataQualityConfidence: response.data_quality_summary.provider_results.find((quality) => quality.provider === item.provider)?.confidence_multiplier ?? item.confidence, finalConfidence: item.confidence, predictionSource: item.prediction_source === "XGBOOST_MODEL" ? "MODEL" : "DETERMINISTIC_FALLBACK", drivers: item.top_factors.map(mapDriver), modelVersion: item.model_version, calculatedAt: item.generated_at }));
 }
 
 export async function getAgentTransactions(agentId: string): Promise<Transaction[]> {
