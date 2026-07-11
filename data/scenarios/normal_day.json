@@ -1,0 +1,6 @@
+{
+  "id": "normal_day",
+  "name": "Normal day",
+  "description": "Balanced weekday demand with healthy feeds across providers.",
+  "verification_focus": "baseline_liquidity"
+}

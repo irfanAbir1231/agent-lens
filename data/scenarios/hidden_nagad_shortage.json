@@ -1,0 +1,6 @@
+{
+  "id": "hidden_nagad_shortage",
+  "name": "Hidden Nagad shortage",
+  "description": "Overall value remains healthy while AGENT-104 shows a provider-specific Nagad shortage.",
+  "verification_focus": "provider_specific_shortage"
+}

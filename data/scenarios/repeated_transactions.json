@@ -1,0 +1,6 @@
+{
+  "id": "repeated_transactions",
+  "name": "Repeated transactions",
+  "description": "AGENT-104 shows repeated near-identical Nagad cash-out amounts and elevated short-window velocity.",
+  "verification_focus": "repeated_amounts_and_velocity"
+}

@@ -1,1 +1,1 @@
-
+"""Sanitized workflow audit events."""

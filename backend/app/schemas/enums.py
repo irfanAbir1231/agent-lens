@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+from enum import StrEnum
+
+
+class Provider(StrEnum):
+    BKASH = "BKASH"
+    NAGAD = "NAGAD"
+    ROCKET = "ROCKET"
+
+
+class UserRole(StrEnum):
+    AGENT = "AGENT"
+    PROVIDER_OPERATIONS = "PROVIDER_OPERATIONS"
+    FIELD_OFFICER = "FIELD_OFFICER"
+    RISK_ANALYST = "RISK_ANALYST"
+    AREA_MANAGER = "AREA_MANAGER"
+    MANAGEMENT_VIEWER = "MANAGEMENT_VIEWER"
+    SYSTEM_ADMIN = "SYSTEM_ADMIN"
+
+
+class AlertType(StrEnum):
+    LIQUIDITY_PRESSURE = "LIQUIDITY_PRESSURE"
+    UNUSUAL_ACTIVITY = "UNUSUAL_ACTIVITY"
+    DATA_QUALITY = "DATA_QUALITY"
+    COMBINED_OPERATIONAL_REVIEW = "COMBINED_OPERATIONAL_REVIEW"
+
+
+class AlertStatus(StrEnum):
+    NEW = "NEW"
+    TRIAGED = "TRIAGED"
+    ASSIGNED = "ASSIGNED"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    ESCALATED = "ESCALATED"
+    RESOLVED = "RESOLVED"
+    DISMISSED = "DISMISSED"
+
+
+class CaseStatus(StrEnum):
+    NEW = "NEW"
+    ASSIGNED = "ASSIGNED"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    ESCALATED = "ESCALATED"
+    RESOLVED = "RESOLVED"
+    DISMISSED = "DISMISSED"
+
+
+class Severity(StrEnum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+class PressureLevel(StrEnum):
+    NORMAL = "NORMAL"
+    WATCH = "WATCH"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+    UNKNOWN = "UNKNOWN"
+
+
+class DataHealthStatus(StrEnum):
+    HEALTHY = "HEALTHY"
+    DELAYED = "DELAYED"
+    INCOMPLETE = "INCOMPLETE"
+    CONFLICTING = "CONFLICTING"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class AIAdvisoryStatus(StrEnum):
+    NOT_REQUESTED = "NOT_REQUESTED"
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    BLOCKED_BY_DATA_QUALITY = "BLOCKED_BY_DATA_QUALITY"
+    REQUIRES_HUMAN_REVIEW = "REQUIRES_HUMAN_REVIEW"
+
+
+class HumanDecision(StrEnum):
+    APPROVED = "APPROVED"
+    MODIFIED = "MODIFIED"
+    REJECTED = "REJECTED"
+    ESCALATED = "ESCALATED"
+    CONTINUE_MONITORING = "CONTINUE_MONITORING"
+
+
+class TransactionType(StrEnum):
+    CASH_IN = "CASH_IN"
+    CASH_OUT = "CASH_OUT"
+
+
+class TransactionStatus(StrEnum):
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+
+class ScenarioId(StrEnum):
+    NORMAL_DAY = "normal_day"
+    EID_SPIKE = "eid_spike"
+    HIDDEN_NAGAD_SHORTAGE = "hidden_nagad_shortage"
+    REPEATED_TRANSACTIONS = "repeated_transactions"
+    DELAYED_ROCKET_FEED = "delayed_rocket_feed"
+    CONFLICTING_BALANCE = "conflicting_balance"
