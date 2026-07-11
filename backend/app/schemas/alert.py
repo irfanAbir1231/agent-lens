@@ -29,6 +29,7 @@ class RetrievalSource(AgentLensSchema):
 
 
 class AlertDetail(AlertSummary):
+    analysis_id: str | None = None
     provider_scope: Provider
     anomaly: AnomalyResult
     risk: RiskAssessment

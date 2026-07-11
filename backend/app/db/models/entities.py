@@ -151,3 +151,55 @@ class SimilarCaseSummary(Base):
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     outcome: Mapped[str] = mapped_column(String(32), nullable=False)
     tags: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+
+
+class AnalysisRecord(Base):
+    __tablename__ = "analysis_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "agent_id", "idempotency_key", name="uq_analysis_agent_idempotency"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    agent_id: Mapped[str] = mapped_column(
+        ForeignKey("agents.id"), nullable=False, index=True
+    )
+    scenario_id: Mapped[str] = mapped_column(
+        ForeignKey("scenarios.id"), nullable=False, index=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    pipeline_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    advisory_status: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    response_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    ai_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_category: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class AlertRecord(Base):
+    __tablename__ = "alert_records"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    agent_id: Mapped[str] = mapped_column(
+        ForeignKey("agents.id"), nullable=False, index=True
+    )
+    scenario_id: Mapped[str] = mapped_column(
+        ForeignKey("scenarios.id"), nullable=False, index=True
+    )
+    analysis_id: Mapped[str] = mapped_column(
+        ForeignKey("analysis_records.id"), nullable=False, index=True
+    )
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    alert_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    severity: Mapped[str] = mapped_column(String(32), nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)

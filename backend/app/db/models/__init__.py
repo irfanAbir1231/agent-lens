@@ -1,6 +1,8 @@
 from app.db.models.base import Base
 from app.db.models.entities import (
     Agent,
+    AlertRecord,
+    AnalysisRecord,
     Area,
     PolicySnippet,
     ProviderBalance,
@@ -12,6 +14,8 @@ from app.db.models.entities import (
 
 __all__ = [
     "Agent",
+    "AlertRecord",
+    "AnalysisRecord",
     "Area",
     "Base",
     "PolicySnippet",

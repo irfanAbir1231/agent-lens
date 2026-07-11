@@ -1,0 +1,1 @@
+"""Versioned advisory prompts."""

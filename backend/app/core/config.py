@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.schemas.enums import ScenarioId
@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     request_id_header: str = "X-Request-ID"
     max_page_size: int = 100
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-5.4-mini"
+    openai_timeout_seconds: float = Field(default=20.0, gt=0.0, le=60.0)
 
     @field_validator("cors_origins", mode="before")
     @classmethod

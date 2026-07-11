@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models import (
     Agent,
+    AlertRecord,
+    AnalysisRecord,
     Area,
     PolicySnippet,
     ProviderBalance,
@@ -290,6 +292,8 @@ def write_generated_summary(
 
 def _clear_existing_data(session: Session) -> None:
     for model in (
+        AlertRecord,
+        AnalysisRecord,
         Transaction,
         ProviderFeedState,
         ProviderBalance,

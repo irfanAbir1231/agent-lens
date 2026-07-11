@@ -12,6 +12,7 @@ from app.analytics.risk.evaluator import fuse_risk
 from app.core.errors import NotFoundError
 from app.db.models import Scenario
 from app.repositories.alert_repository import AlertRepository
+from app.repositories.analysis_repository import AnalysisRepository
 from app.schemas.alert import AlertDetail, AlertListResponse, AlertSummary
 from app.schemas.anomaly import (
     AnomalyContextualBaseline,
@@ -20,6 +21,7 @@ from app.schemas.anomaly import (
 )
 from app.schemas.common import PaginationMetadata
 from app.schemas.enums import AlertStatus, AlertType, Provider, Severity
+from app.services.analysis_fingerprint import alert_input_fingerprint
 from app.services.forecast_service import ForecastService
 from app.services.retrieval_service import RetrievalService
 
@@ -28,6 +30,7 @@ PROJECTION_VERSION = "alert-projection-v1"
 
 class AlertService:
     def __init__(self, session: Session) -> None:
+        self._session = session
         self._repository = AlertRepository(session)
         self._forecasts = ForecastService(session)
         self._quality = DataQualityEvaluator()
@@ -43,6 +46,7 @@ class AlertService:
         page_size: int,
     ) -> AlertListResponse:
         scenario, projections = self._build_projections()
+        projections = self._overlay_persisted(scenario.id, projections)
         filtered = [
             item
             for item in projections
@@ -63,7 +67,8 @@ class AlertService:
         )
 
     def get_alert(self, *, alert_id: str) -> AlertDetail:
-        _, projections = self._build_projections()
+        scenario, projections = self._build_projections()
+        projections = self._overlay_persisted(scenario.id, projections)
         for item in projections:
             if item.id == alert_id:
                 return item
@@ -74,6 +79,11 @@ class AlertService:
         )
 
     def _build_projections(self) -> tuple[Scenario, list[AlertDetail]]:
+        return self.build_projections()
+
+    def build_projections(
+        self, *, include_low: bool = False, agent_id: str | None = None
+    ) -> tuple[Scenario, list[AlertDetail]]:
         scenario, agent_sources = self._repository.get_projection_sources()
         by_provider = {
             provider: [
@@ -90,7 +100,12 @@ class AlertService:
         }
         is_eid = scenario.metadata_json.get("event") == "EID"
         results: list[AlertDetail] = []
-        for agent in agent_sources:
+        target_sources = (
+            agent_sources
+            if agent_id is None
+            else [item for item in agent_sources if item.agent_id == agent_id]
+        )
+        for agent in target_sources:
             quality = self._quality.evaluate_agent(
                 agent, evaluated_at=scenario.generated_at
             )
@@ -119,7 +134,7 @@ class AlertService:
                     allow_ai_from_quality=quality_item.allow_ai_advisory,
                     is_eid=is_eid,
                 )
-                if Severity(risk.severity) == Severity.LOW:
+                if Severity(risk.severity) == Severity.LOW and not include_low:
                     continue
                 policies, cases = self._retrieval.retrieve(
                     alert_type=AlertType(risk.alert_type),
@@ -152,6 +167,25 @@ class AlertService:
                 )
         results.sort(key=lambda item: (item.priority, item.id))
         return scenario, results
+
+    def _overlay_persisted(
+        self, scenario_id: str, current: list[AlertDetail]
+    ) -> list[AlertDetail]:
+        fingerprints = {alert_input_fingerprint(item) for item in current}
+        records = AnalysisRepository(self._session).list_alert_snapshots(
+            scenario_id=scenario_id,
+            input_fingerprints=fingerprints,
+        )
+        by_match = {
+            (item.id, item.input_fingerprint): AlertDetail.model_validate(
+                item.snapshot_json
+            )
+            for item in records
+        }
+        return [
+            by_match.get((item.id, alert_input_fingerprint(item)), item)
+            for item in current
+        ]
 
 
 def _anomaly_schema(item: AnomalyEvaluation) -> AnomalyResult:
