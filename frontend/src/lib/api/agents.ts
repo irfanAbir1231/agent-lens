@@ -1,5 +1,5 @@
-import { agentDetails, agents, forecasts } from "@/mocks";
-import type { AgentDetail, AgentSummary, LiquidityForecast } from "@/types";
+import { agentDetails, agents, forecasts, transactions } from "@/mocks";
+import type { AgentDetail, AgentSummary, LiquidityForecast, Transaction } from "@/types";
 import { findMockOrThrow, mockFindResponse, mockResponse } from "./mock-client";
 import { mockDelay } from "./mock-delay";
 
@@ -15,4 +15,12 @@ export async function getAgentForecasts(agentId: string): Promise<LiquidityForec
   await mockDelay();
   const agent = findMockOrThrow(agentDetails, (item) => item.agentId === agentId, "Agent", agentId);
   return forecasts.filter((forecast) => forecast.agentId === agent.agentId);
+}
+
+export async function getAgentTransactions(agentId: string): Promise<Transaction[]> {
+  await mockDelay();
+  const agent = findMockOrThrow(agentDetails, (item) => item.agentId === agentId, "Agent", agentId);
+  return transactions
+    .filter((transaction) => transaction.agentId === agent.agentId)
+    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
 }
