@@ -18,8 +18,11 @@ from app.db.models import (
     AuditEventRecord,
     CaseNoteRecord,
     CaseRecord,
+    DatasetManifestRecord,
     EvaluationMetricSnapshot,
+    HistoricalLiquidityObservation,
     HumanDecisionRecord,
+    ModelVersionRecord,
     PolicySnippet,
     ProviderBalance,
     ProviderFeedState,
@@ -280,11 +283,13 @@ def write_generated_summary(
 
 
 def _clear_existing_data(session: Session) -> None:
-    # ModelVersionRecord, HistoricalLiquidityObservation, and
-    # DatasetManifestRecord are intentionally excluded: they belong to the
-    # ML dataset importer (app/ml/importer.py), not the scenario seeder.
-    # Wiping them here would erase model provenance every time a demo
-    # scenario is reset, independent of when the ML dataset was imported.
+    # HistoricalLiquidityObservation has a foreign key on Agent.id, so it
+    # must be cleared before Agent is deleted below. ModelVersionRecord and
+    # DatasetManifestRecord are cleared alongside it: both callers of this
+    # reset (scripts/generate_synthetic_data.py per the documented setup
+    # order, and the /scenarios/{id}/activate endpoint) always re-run the ML
+    # dataset import immediately afterward, so these are repopulated as part
+    # of the same operation rather than left stale.
     for model in (
         EvaluationMetricSnapshot,
         AuditEventRecord,
@@ -294,6 +299,9 @@ def _clear_existing_data(session: Session) -> None:
         AlertRecord,
         AnalysisRecord,
         Transaction,
+        ModelVersionRecord,
+        HistoricalLiquidityObservation,
+        DatasetManifestRecord,
         ProviderFeedState,
         ProviderBalance,
         Agent,
