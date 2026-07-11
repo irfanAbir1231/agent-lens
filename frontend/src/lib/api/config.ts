@@ -6,5 +6,5 @@ export const apiConfig = {
   mode: apiMode,
   mockDelayMilliseconds: 120,
   baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
-  timeoutMilliseconds: 30_000,
+  timeoutMilliseconds: 45_000,
 } as const;

@@ -17,6 +17,7 @@ export const agentDetails: AgentDetail[] = [
 ];
 
 export const overviewSnapshot: OverviewSnapshot = {
+  generatedAt: "2026-07-11T08:42:00Z",
   sharedPhysicalCashMinor: 18_000_000,
   agentsAtRisk: 4,
   openAlerts: 7,

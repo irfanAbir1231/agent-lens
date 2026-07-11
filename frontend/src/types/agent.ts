@@ -1,4 +1,4 @@
-import type { AmountMinor } from "./common";
+import type { AmountMinor, ISODateTime } from "./common";
 import type { ProviderBalance, ProviderOverview } from "./provider";
 
 export interface AgentSummary {
@@ -17,6 +17,7 @@ export interface AgentDetail extends AgentSummary {
 }
 
 export interface OverviewSnapshot {
+  generatedAt: ISODateTime;
   sharedPhysicalCashMinor: AmountMinor;
   agentsAtRisk: number;
   openAlerts: number;

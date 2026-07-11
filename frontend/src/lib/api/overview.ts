@@ -13,6 +13,7 @@ export async function getOverview(): Promise<OverviewSnapshot> {
   ]);
   const feed = new Map(overview.feed_summary.map((item) => [item.provider, item]));
   return {
+    generatedAt: overview.generated_at,
     sharedPhysicalCashMinor: overview.total_shared_cash_minor,
     agentsAtRisk: new Set(alerts.alerts.map((item) => item.agent_id)).size,
     openAlerts: alerts.alerts.length,

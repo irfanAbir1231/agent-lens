@@ -24,7 +24,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...init,
       signal: controller.signal,
       headers: { Accept: "application/json", "X-Actor-ID": getActiveActor(), ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
-      cache: init.method && init.method !== "GET" ? "no-store" : init.cache,
+      // This is a live operational dashboard, not static content: Next.js's
+      // fetch patching defaults an unspecified `cache` to "force-cache" for
+      // GET requests, which would silently serve a stale snapshot from
+      // whenever a route was first rendered instead of current backend
+      // state. Every request must be fresh.
+      cache: "no-store",
     });
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok) throw apiErrorFromStatus(response.status, errorMessage(body));

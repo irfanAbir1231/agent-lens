@@ -8,7 +8,7 @@ export interface AgentDto {
   recent_transactions?: TransactionDto[];
 }
 export interface TransactionDto { id: string; agent_id: string; provider: ProviderId; transaction_type: "CASH_IN" | "CASH_OUT"; amount_minor: number; status: "SUCCESS" | "FAILED" | "PENDING"; occurred_at: string; synthetic_account_reference: string }
-export interface OverviewDto { total_shared_cash_minor: number; provider_totals: { provider: ProviderId; total_provider_balance_minor: number }[]; feed_summary: { provider: ProviderId; status: DataHealthStatus; last_received_at: string | null }[] }
+export interface OverviewDto { generated_at: string; total_shared_cash_minor: number; provider_totals: { provider: ProviderId; total_provider_balance_minor: number }[]; feed_summary: { provider: ProviderId; status: DataHealthStatus; last_received_at: string | null }[] }
 export interface ForecastDto {
   generated_at: string;
   data_quality_summary: { provider_results: { provider: ProviderId; confidence_multiplier: number }[] };

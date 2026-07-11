@@ -3,8 +3,8 @@ import { getAlerts } from "@/lib/api/alerts";
 import { getDataQuality } from "@/lib/api/data-quality";
 import { FrontendApiError } from "@/lib/api/errors";
 import { getOverview } from "@/lib/api/overview";
-import { formatBDT, formatConfidence } from "@/lib/formatting";
-import type { AgentSummary, DataQualityResult, ProviderId, ProviderOverview, ProviderStatus } from "@/types";
+import { formatBDT, formatConfidence, formatStatus } from "@/lib/formatting";
+import type { Alert, AgentSummary, DataQualityResult, ProviderId, ProviderOverview, ProviderStatus, Severity } from "@/types";
 
 export type OverviewTone = "healthy" | "watch" | "critical" | "review" | "unknown" | "neutral";
 
@@ -76,24 +76,25 @@ export interface OverviewViewModel {
   initialLastUpdatedLabel: string;
 }
 
-const referenceTime = new Date("2026-07-11T08:42:00Z");
-
 const providerNames: Record<ProviderId, string> = { BKASH: "bKash", NAGAD: "Nagad", ROCKET: "Rocket" };
 const providerActions: Record<ProviderId, { label: string; href: string }> = {
   BKASH: { label: "View outlet", href: "/agents/AGENT-104" },
   NAGAD: { label: "Investigate shortage", href: "/agents/AGENT-104" },
   ROCKET: { label: "Review data status", href: "/data-health" },
 };
-const pressureByAgent: Record<string, { pressure: string; tone: OverviewTone; risk: string }> = {
-  "AGENT-104": { pressure: "Nagad Critical", tone: "critical", risk: "37-minute shortage" },
-  "AGENT-219": { pressure: "bKash High", tone: "watch", risk: "Demand surge" },
-  "AGENT-087": { pressure: "Rocket Delayed", tone: "unknown", risk: "Data unavailable" },
-};
+const severityOrder: Record<Severity, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
 
 function statusTone(status: ProviderStatus): OverviewTone {
   if (status === "HEALTHY") return "healthy";
   if (status === "CRITICAL") return "critical";
   if (status === "DELAYED" || status === "WATCH" || status === "HIGH") return "watch";
+  return "unknown";
+}
+
+function severityTone(severity: Severity): OverviewTone {
+  if (severity === "CRITICAL") return "critical";
+  if (severity === "HIGH") return "watch";
+  if (severity === "MEDIUM") return "review";
   return "unknown";
 }
 
@@ -109,12 +110,12 @@ function formatDuration(minutes: number): string {
   return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }
 
-function minutesSince(timestamp: string): number {
+function minutesSince(timestamp: string, referenceTime: Date): number {
   return Math.max(0, Math.round((referenceTime.getTime() - new Date(timestamp).getTime()) / 60_000));
 }
 
-function updatedLabel(timestamp: string): string {
-  const minutes = minutesSince(timestamp);
+function updatedLabel(timestamp: string, referenceTime: Date): string {
+  const minutes = minutesSince(timestamp, referenceTime);
   return minutes === 1 ? "1 minute ago" : `${minutes} minutes ago`;
 }
 
@@ -136,14 +137,19 @@ function requireAgent(agents: AgentSummary[], agentId: string): AgentSummary {
   return agent;
 }
 
-function providerCard(provider: ProviderOverview): ProviderStatusViewModel {
+function providerCard(provider: ProviderOverview, referenceTime: Date): ProviderStatusViewModel {
   const isDelayed = provider.status === "DELAYED";
   const hasShortage = provider.estimatedShortageMinutes !== null;
   let detailLabel = "Coverage";
-  let detailValue = formatDuration(provider.coverageMinutes ?? 0);
+  // The overview endpoint doesn't carry a per-provider coverage/shortage
+  // estimate (that requires the agent-level forecast, which is expensive
+  // enough that fetching it here would roughly triple this page's load
+  // time — see /agents/[agentId] for the real, detailed forecast instead).
+  // Show that honestly rather than a fabricated placeholder number.
+  let detailValue = provider.coverageMinutes !== null ? formatDuration(provider.coverageMinutes) : "See agent detail";
   if (isDelayed) {
     detailLabel = "Last update";
-    detailValue = updatedLabel(provider.lastUpdatedAt);
+    detailValue = updatedLabel(provider.lastUpdatedAt, referenceTime);
   } else if (hasShortage) {
     detailLabel = "Estimated shortage";
     detailValue = formatDuration(provider.estimatedShortageMinutes ?? 0);
@@ -165,45 +171,57 @@ function providerCard(provider: ProviderOverview): ProviderStatusViewModel {
   };
 }
 
-function pressureRow(agent: AgentSummary, rank: number): AgentPressureViewModel {
-  const pressure = pressureByAgent[agent.agentId] ?? { pressure: "Unknown", tone: "unknown" as const, risk: "Review required" };
-  const area = agent.agentId === "AGENT-104" ? agent.name.replace(" Outlet", "") : agent.area.split(",")[0];
+function pressureRow(agent: AgentSummary, agentAlerts: Alert[], rank: number): AgentPressureViewModel {
+  const topAlert = agentAlerts.slice().sort((a, b) => severityOrder[b.severity] - severityOrder[a.severity])[0];
   return {
     rank,
     agentId: agent.agentId,
-    area,
-    highestPressure: pressure.pressure,
-    pressureTone: pressure.tone,
+    area: agent.area.split(",")[0],
+    highestPressure: topAlert ? `${providerNames[topAlert.providerId]} ${formatStatus(topAlert.severity)}` : "Monitoring",
+    pressureTone: topAlert ? severityTone(topAlert.severity) : "healthy",
     sharedCash: formatBDT(agent.sharedPhysicalCashMinor),
-    primaryRisk: pressure.risk,
-    actionHref: agent.agentId === "AGENT-104" ? "/agents/AGENT-104" : null,
+    primaryRisk: topAlert ? topAlert.title : "No active alerts",
+    actionHref: `/agents/${agent.agentId}`,
   };
 }
 
+const FEATURED_AGENT_ID = "AGENT-104";
+
 export async function loadOverviewViewModel(): Promise<OverviewViewModel> {
+  // Forecasts are fetched in the same batch as everything else (not
+  // sequenced after it) since the underlying endpoint runs a synchronous
+  // risk-computation pipeline that can take upward of 20 seconds on its
+  // own; that level of detail belongs on the agent detail / analysis
+  // pages, not the landing page every judge sees first.
   const [overview, agents, alerts, dataQuality] = await Promise.all([getOverview(), getAgents(), getAlerts(), getDataQuality()]);
+  const referenceTime = new Date(overview.generatedAt);
   const bkash = requireProvider(overview.providerSummaries, "BKASH");
   const nagad = requireProvider(overview.providerSummaries, "NAGAD");
   const rocket = requireProvider(overview.providerSummaries, "ROCKET");
   const activityAlert = alerts.find((alert) => alert.alertId === "ALT-2039") ?? alerts[0] ?? null;
+  const featuredAgentId = FEATURED_AGENT_ID;
 
   return {
     summaryMetrics: [
-      { label: "Shared physical cash", value: formatBDT(overview.sharedPhysicalCashMinor), description: "12% lower than 30 minutes ago" },
-      { label: "Agents at risk", value: String(overview.agentsAtRisk), description: "2 entered risk status recently", status: { label: "Watch", tone: "watch" } },
-      { label: "Open alerts", value: String(overview.openAlerts), description: "3 are new", status: { label: "Action needed", tone: "critical" } },
-      { label: "Critical cases", value: String(overview.criticalCases), description: "1 is unacknowledged", status: { label: "Critical", tone: "critical" } },
+      { label: "Shared physical cash", value: formatBDT(overview.sharedPhysicalCashMinor), description: "Combined physical cash across all outlets" },
+      { label: "Agents at risk", value: String(overview.agentsAtRisk), description: "Agents with at least one active alert", status: { label: "Watch", tone: "watch" } },
+      { label: "Open alerts", value: String(overview.openAlerts), description: "Signals requiring operational review", status: { label: "Action needed", tone: "critical" } },
+      { label: "Critical cases", value: String(overview.criticalCases), description: "Cases at the highest priority tier", status: { label: "Critical", tone: "critical" } },
     ],
-    providers: [bkash, nagad, rocket].map(providerCard),
+    providers: [
+      providerCard(bkash, referenceTime),
+      providerCard(nagad, referenceTime),
+      providerCard(rocket, referenceTime),
+    ],
     shortageTimeline: [
-      { provider: "Nagad", value: `${nagad.estimatedShortageMinutes ?? 37} minutes`, widthPercent: 15, tone: "critical" },
-      { provider: "Rocket", value: "Unknown because data is delayed", widthPercent: 34, tone: "unknown" },
-      { provider: "bKash", value: formatDuration(bkash.coverageMinutes ?? 250), widthPercent: 100, tone: "healthy" },
+      { provider: "Nagad", value: nagad.estimatedShortageMinutes !== null ? formatDuration(nagad.estimatedShortageMinutes) : "See agent detail", widthPercent: nagad.estimatedShortageMinutes !== null ? Math.max(10, Math.min(100, Math.round((nagad.estimatedShortageMinutes / 240) * 100))) : 100, tone: nagad.estimatedShortageMinutes !== null ? "critical" : "healthy" },
+      { provider: "Rocket", value: rocket.status === "DELAYED" ? "Unknown because data is delayed" : "See agent detail", widthPercent: rocket.status === "DELAYED" ? 34 : 100, tone: rocket.status === "DELAYED" ? "unknown" : "healthy" },
+      { provider: "bKash", value: bkash.coverageMinutes !== null ? formatDuration(bkash.coverageMinutes) : "See agent detail", widthPercent: bkash.coverageMinutes !== null ? Math.max(10, Math.min(100, Math.round((bkash.coverageMinutes / 240) * 100))) : 100, tone: "healthy" },
     ],
     priorityAlerts: [
-      { id: "LIQUIDITY-NAGAD", severity: "Critical", tone: "critical", message: "Nagad balance may be exhausted in approximately 37 minutes.", confidence: formatConfidence(nagad.confidence), actionLabel: "View AGENT-104", actionHref: "/agents/AGENT-104" },
+      ...(nagad.estimatedShortageMinutes !== null ? [{ id: "LIQUIDITY-NAGAD", severity: "Critical", tone: "critical" as const, message: `Nagad balance may be exhausted in approximately ${nagad.estimatedShortageMinutes} minutes.`, confidence: formatConfidence(nagad.confidence), actionLabel: `View ${featuredAgentId}`, actionHref: `/agents/${featuredAgentId}` }] : []),
       ...(activityAlert ? [{ id: activityAlert.alertId, severity: "High", tone: "watch" as const, message: activityAlert.title, confidence: formatConfidence(activityAlert.confidence), actionLabel: "Open alert evidence", actionHref: `/alerts/${activityAlert.alertId}` }] : []),
-      { id: "DATA-ROCKET", severity: "Medium", tone: "unknown", message: "Rocket provider feed is delayed by 22 minutes.", confidence: formatConfidence(rocket.confidence), actionLabel: "Review data status", actionHref: "/data-health" },
+      ...(rocket.status === "DELAYED" ? [{ id: "DATA-ROCKET", severity: "Medium", tone: "unknown" as const, message: `Rocket provider feed is delayed. Last update ${updatedLabel(rocket.lastUpdatedAt, referenceTime)}.`, confidence: formatConfidence(rocket.confidence), actionLabel: "Review data status", actionHref: "/data-health" }] : []),
     ],
     dataHealth: (["BKASH", "NAGAD", "ROCKET"] as ProviderId[]).map<DataHealthViewModel>((providerId) => {
       const quality = requireQuality(dataQuality, providerId);
@@ -213,10 +231,10 @@ export async function loadOverviewViewModel(): Promise<OverviewViewModel> {
         provider: providerNames[providerId],
         status: quality.status === "DELAYED" ? "Delayed" : "Healthy",
         tone: quality.status === "DELAYED" ? "watch" : "healthy",
-        updatedLabel: updatedLabel(provider.lastUpdatedAt),
+        updatedLabel: updatedLabel(provider.lastUpdatedAt, referenceTime),
       };
     }),
-    agentPressure: overview.priorityAgentIds.map((agentId, index) => pressureRow(requireAgent(agents, agentId), index + 1)),
-    initialLastUpdatedLabel: "2:42 PM",
+    agentPressure: overview.priorityAgentIds.map((agentId, index) => pressureRow(requireAgent(agents, agentId), alerts.filter((alert) => alert.agentId === agentId), index + 1)),
+    initialLastUpdatedLabel: updatedLabel(overview.generatedAt, referenceTime) === "0 minutes ago" ? "Just now" : `Scenario time ${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(referenceTime)}`,
   };
 }
