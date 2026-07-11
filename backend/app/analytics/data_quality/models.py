@@ -101,7 +101,8 @@ class MeasuredEvidence:
     ledger_balance_minor: int | None
     duplicate_transaction_ids: tuple[str, ...]
     duplicate_transaction_record_count: int
-    out_of_order_timestamp_count: int
+    timestamp_order_check_available: bool
+    out_of_order_timestamp_count: int | None
     future_timestamp_count: int
     invalid_monetary_value_count: int
 

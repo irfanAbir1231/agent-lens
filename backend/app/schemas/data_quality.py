@@ -39,7 +39,8 @@ class DataQualityMeasuredEvidence(AgentLensSchema):
     ledger_balance_minor: int | None = None
     duplicate_transaction_ids: list[str]
     duplicate_transaction_record_count: int = Field(ge=0)
-    out_of_order_timestamp_count: int = Field(ge=0)
+    timestamp_order_check_available: bool
+    out_of_order_timestamp_count: int | None = Field(default=None, ge=0)
     future_timestamp_count: int = Field(ge=0)
     invalid_monetary_value_count: int = Field(ge=0)
 

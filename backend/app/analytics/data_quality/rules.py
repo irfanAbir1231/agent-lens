@@ -182,10 +182,6 @@ def evaluate_rules(
     if duplicate_record_count:
         codes.append(DataQualityIssueCode.DUPLICATE_TRANSACTION_RECORD)
 
-    out_of_order_count = _out_of_order_count(scoped_transactions)
-    if out_of_order_count:
-        codes.append(DataQualityIssueCode.TIMESTAMP_OUT_OF_ORDER)
-
     future_timestamp_count = sum(
         ensure_utc_datetime(transaction.occurred_at).timestamp()
         > evaluated_at.timestamp() + FUTURE_TIMESTAMP_TOLERANCE_SECONDS
@@ -232,7 +228,8 @@ def evaluate_rules(
             ledger_balance_minor=source.ledger_balance_minor,
             duplicate_transaction_ids=duplicate_ids,
             duplicate_transaction_record_count=duplicate_record_count,
-            out_of_order_timestamp_count=out_of_order_count,
+            timestamp_order_check_available=False,
+            out_of_order_timestamp_count=None,
             future_timestamp_count=future_timestamp_count,
             invalid_monetary_value_count=invalid_monetary_value_count,
         ),
@@ -264,14 +261,6 @@ def _duplicate_record_count(transactions: tuple[TransactionRecord, ...]) -> int:
         _transaction_signature(transaction) for transaction in transactions
     )
     return sum(count - 1 for count in counts.values() if count > 1)
-
-
-def _out_of_order_count(transactions: tuple[TransactionRecord, ...]) -> int:
-    timestamps = [ensure_utc_datetime(item.occurred_at) for item in transactions]
-    return sum(
-        current > previous
-        for previous, current in zip(timestamps, timestamps[1:], strict=False)
-    )
 
 
 def _max_transaction_gap_minutes(

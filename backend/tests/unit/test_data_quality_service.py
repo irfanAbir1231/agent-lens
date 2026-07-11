@@ -30,8 +30,12 @@ def test_service_counts_full_filtered_set_before_pagination(
         page_size=2,
     )
 
-    assert response.status_counts == expected_status_counts(healthy=2, incomplete=4)
+    assert response.status_counts == expected_status_counts(healthy=6)
     assert [item.agent_id for item in response.results] == ["AGENT-103", "AGENT-104"]
+    assert all(
+        item.overall_status == DataHealthStatus.HEALTHY for item in response.results
+    )
+    assert all(item.allow_forecast is True for item in response.results)
     assert response.pagination.model_dump() == {
         "page": 2,
         "page_size": 2,

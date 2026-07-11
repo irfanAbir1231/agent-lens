@@ -191,7 +191,22 @@ def test_duplicate_id_and_record_are_conflicting_and_penalized() -> None:
     assert result.allow_forecast is False
 
 
-def test_timestamp_and_monetary_rules_capture_measured_evidence() -> None:
+def test_unordered_timestamps_are_not_flagged_without_ingestion_order() -> None:
+    transactions = list(healthy_source().transactions or ())
+    transactions[1] = replace(
+        transactions[1], occurred_at=EVALUATED_AT - timedelta(minutes=5)
+    )
+    source = replace(healthy_source(), transactions=tuple(transactions))
+
+    result = DataQualityEvaluator().evaluate_provider(source, evaluated_at=EVALUATED_AT)
+
+    assert result.status == DataHealthStatus.HEALTHY
+    assert DataQualityIssueCode.TIMESTAMP_OUT_OF_ORDER not in issue_codes(source)
+    assert result.measured_evidence.timestamp_order_check_available is False
+    assert result.measured_evidence.out_of_order_timestamp_count is None
+
+
+def test_future_timestamp_and_monetary_rules_capture_measured_evidence() -> None:
     transactions = list(healthy_source().transactions or ())
     transactions[1] = replace(
         transactions[1], occurred_at=EVALUATED_AT + timedelta(minutes=2)
@@ -204,12 +219,13 @@ def test_timestamp_and_monetary_rules_capture_measured_evidence() -> None:
 
     assert result.status == DataHealthStatus.CONFLICTING
     assert issue_codes(source) == {
-        DataQualityIssueCode.TIMESTAMP_OUT_OF_ORDER,
         DataQualityIssueCode.FUTURE_TIMESTAMP,
         DataQualityIssueCode.INVALID_MONETARY_VALUE,
     }
-    assert result.component_scores.timeliness == 0.7
+    assert result.component_scores.timeliness == 1
     assert result.component_scores.validity == 0
+    assert result.measured_evidence.timestamp_order_check_available is False
+    assert result.measured_evidence.out_of_order_timestamp_count is None
     assert result.measured_evidence.future_timestamp_count == 1
     assert result.measured_evidence.invalid_monetary_value_count == 1
 

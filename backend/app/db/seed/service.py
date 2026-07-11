@@ -612,7 +612,7 @@ def _build_transaction(
         else TransactionType.CASH_IN
     )
     occurred_at = manifest.generated_at - timedelta(
-        minutes=(sequence * 2) + occurrence_index + PROVIDER_ORDER.index(provider)
+        minutes=((occurrence_index + 1) * 6) + PROVIDER_ORDER.index(provider)
     )
 
     return Transaction(

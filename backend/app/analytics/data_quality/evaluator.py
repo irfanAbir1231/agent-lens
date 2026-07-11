@@ -20,7 +20,7 @@ from app.analytics.data_quality.rules import (
 from app.schemas.common import ensure_utc_datetime
 from app.schemas.enums import DataHealthStatus, Provider
 
-EVALUATOR_VERSION = "data-quality-v1"
+EVALUATOR_VERSION = "data-quality-v1.1"
 STATUS_PRIORITY = {
     DataHealthStatus.HEALTHY: 0,
     DataHealthStatus.DELAYED: 1,

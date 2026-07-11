@@ -19,6 +19,80 @@ ALL_STATUS_KEYS = {
 
 
 @pytest.mark.anyio
+async def test_normal_day_is_healthy_and_forecast_permitted_for_every_provider(
+    make_settings: Callable[..., Settings],
+) -> None:
+    async with async_test_client(make_settings(suffix="normal-health")) as client:
+        response = await client.get("/api/v1/data-quality", params={"page_size": 100})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status_counts"] == {
+            "HEALTHY": 6,
+            "DELAYED": 0,
+            "INCOMPLETE": 0,
+            "CONFLICTING": 0,
+            "UNAVAILABLE": 0,
+        }
+        assert len(body["results"]) == 6
+        assert all(result["overall_status"] == "HEALTHY" for result in body["results"])
+        assert all(result["allow_forecast"] is True for result in body["results"])
+        assert all(not result["issues"] for result in body["results"])
+        provider_results = [
+            provider
+            for result in body["results"]
+            for provider in result["provider_results"]
+        ]
+        assert len(provider_results) == 18
+        assert all(provider["status"] == "HEALTHY" for provider in provider_results)
+        assert all(provider["allow_forecast"] is True for provider in provider_results)
+        assert all(
+            provider["measured_evidence"]["recent_window_transaction_count"] >= 5
+            for provider in provider_results
+        )
+        assert all(
+            provider["measured_evidence"]["timestamp_order_check_available"] is False
+            for provider in provider_results
+        )
+        assert all(
+            provider["measured_evidence"]["out_of_order_timestamp_count"] is None
+            for provider in provider_results
+        )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("scenario", "expected_counts"),
+    [
+        (ScenarioId.NORMAL_DAY, {"HEALTHY": 6}),
+        (ScenarioId.EID_SPIKE, {"HEALTHY": 6}),
+        (ScenarioId.HIDDEN_NAGAD_SHORTAGE, {"HEALTHY": 6}),
+        (ScenarioId.REPEATED_TRANSACTIONS, {"HEALTHY": 6}),
+        (ScenarioId.DELAYED_ROCKET_FEED, {"DELAYED": 6}),
+        (
+            ScenarioId.CONFLICTING_BALANCE,
+            {"HEALTHY": 5, "CONFLICTING": 1},
+        ),
+    ],
+)
+async def test_scenario_data_quality_signatures_are_deterministic(
+    make_settings: Callable[..., Settings],
+    scenario: ScenarioId,
+    expected_counts: dict[str, int],
+) -> None:
+    async with async_test_client(
+        make_settings(scenario=scenario, suffix="scenario-signature")
+    ) as client:
+        response = await client.get("/api/v1/data-quality", params={"page_size": 100})
+
+        assert response.status_code == 200
+        status_counts = response.json()["status_counts"]
+        assert {
+            status: count for status, count in status_counts.items() if count > 0
+        } == expected_counts
+
+
+@pytest.mark.anyio
 async def test_data_quality_returns_auditable_contract(
     make_settings: Callable[..., Settings],
 ) -> None:
@@ -33,9 +107,9 @@ async def test_data_quality_returns_auditable_contract(
         assert body["active_scenario_id"] == "normal_day"
         assert body["is_synthetic_data"] is True
         assert body["status_counts"] == {
-            "HEALTHY": 2,
+            "HEALTHY": 6,
             "DELAYED": 0,
-            "INCOMPLETE": 4,
+            "INCOMPLETE": 0,
             "CONFLICTING": 0,
             "UNAVAILABLE": 0,
         }
@@ -49,7 +123,7 @@ async def test_data_quality_returns_auditable_contract(
         first = body["results"][0]
         assert first["agent_id"] == "AGENT-101"
         assert first["overall_status"] == "HEALTHY"
-        assert first["evaluator_version"] == "data-quality-v1"
+        assert first["evaluator_version"] == "data-quality-v1.1"
         assert first["data_window"] == {
             "start_at": "2026-04-10T06:30:00Z",
             "end_at": "2026-04-10T09:30:00Z",
@@ -86,9 +160,9 @@ async def test_data_quality_filters_and_counts_before_pagination(
         assert response.status_code == 200
         body = response.json()
         assert body["status_counts"] == {
-            "HEALTHY": 2,
+            "HEALTHY": 6,
             "DELAYED": 0,
-            "INCOMPLETE": 4,
+            "INCOMPLETE": 0,
             "CONFLICTING": 0,
             "UNAVAILABLE": 0,
         }
