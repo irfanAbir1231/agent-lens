@@ -10,7 +10,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-[var(--color-page-background)]">
       <SkipLink />
       <Sidebar />
-      <div className="lg:pl-60">
+      <div className="lg:pl-64">
         <Topbar />
         <MobileNavigation />
         <main id="main-content" tabIndex={-1}>
