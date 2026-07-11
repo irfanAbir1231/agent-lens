@@ -374,6 +374,7 @@ def _insert_seed_data(session: Session, manifest: ScenarioManifest, seed: int) -
                 )
             )
 
+            paired_amount_minor: int | None = None
             for occurrence_index in range(
                 _transaction_count(agent_seed.id, provider, manifest.id)
             ):
@@ -386,6 +387,11 @@ def _insert_seed_data(session: Session, manifest: ScenarioManifest, seed: int) -
                     occurrence_index=occurrence_index,
                     sequence=tx_counter,
                 )
+                if _uses_balanced_pairs(agent_seed.id, provider, manifest.id):
+                    if occurrence_index % 2 == 0:
+                        paired_amount_minor = transaction.amount_minor
+                    elif paired_amount_minor is not None:
+                        transaction.amount_minor = paired_amount_minor
                 tx_counter += 1
                 session.add(transaction)
 
@@ -566,7 +572,36 @@ def _transaction_count(
         and provider == Provider.NAGAD
     ):
         return 8
-    return 5
+    return 6
+
+
+def _uses_balanced_pairs(
+    agent_id: str, provider: Provider, scenario_id: ScenarioId
+) -> bool:
+    return not (
+        agent_id == "AGENT-104"
+        and provider == Provider.NAGAD
+        and scenario_id
+        in {
+            ScenarioId.EID_SPIKE,
+            ScenarioId.HIDDEN_NAGAD_SHORTAGE,
+            ScenarioId.REPEATED_TRANSACTIONS,
+        }
+    )
+
+
+def _transaction_type(
+    *, agent_id: str, provider: Provider, scenario_id: ScenarioId, index: int
+) -> TransactionType:
+    if agent_id == "AGENT-104" and provider == Provider.NAGAD:
+        if scenario_id in {
+            ScenarioId.EID_SPIKE,
+            ScenarioId.HIDDEN_NAGAD_SHORTAGE,
+        }:
+            return TransactionType.CASH_IN
+        if scenario_id == ScenarioId.REPEATED_TRANSACTIONS:
+            return TransactionType.CASH_OUT
+    return TransactionType.CASH_OUT if index % 2 == 0 else TransactionType.CASH_IN
 
 
 def _build_transaction(
@@ -606,10 +641,11 @@ def _build_transaction(
         and occurrence_index == 0
         else TransactionStatus.SUCCESS
     )
-    transaction_type = (
-        TransactionType.CASH_OUT
-        if occurrence_index % 2 == 0 or provider == Provider.NAGAD
-        else TransactionType.CASH_IN
+    transaction_type = _transaction_type(
+        agent_id=agent_seed.id,
+        provider=provider,
+        scenario_id=manifest.id,
+        index=occurrence_index,
     )
     occurred_at = manifest.generated_at - timedelta(
         minutes=((occurrence_index + 1) * 6) + PROVIDER_ORDER.index(provider)
