@@ -11,4 +11,4 @@ COPY backend/ ./
 COPY scripts/ /scripts/
 
 EXPOSE 8000
-CMD ["sh", "-c", ".venv/bin/alembic upgrade head && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", ".venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

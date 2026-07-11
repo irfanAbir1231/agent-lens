@@ -29,3 +29,19 @@ export interface LiquidityForecast {
   modelVersion: string;
   calculatedAt: ISODateTime;
 }
+
+export interface SharedCashForecast {
+  forecastId: string;
+  agentId: string;
+  currentBalanceMinor: AmountMinor;
+  predictedNetOutflowNext60MinutesMinor: AmountMinor;
+  estimatedShortageMinutes: number | null;
+  pressureStatus: ProviderStatus;
+  confidence: Confidence;
+  predictionSource: ForecastSource;
+  drivers: ForecastDriver[];
+  modelVersion: string;
+  calculatedAt: ISODateTime;
+  forecastBlocked: boolean;
+  dataQualityLimitations: string[];
+}

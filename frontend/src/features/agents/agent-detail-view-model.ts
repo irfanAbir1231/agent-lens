@@ -1,4 +1,4 @@
-import { getAgent, getAgentForecasts, getAgentTransactions } from "@/lib/api/agents";
+import { getAgent, getAgentForecastBundle, getAgentTransactions } from "@/lib/api/agents";
 import { getAlerts } from "@/lib/api/alerts";
 import { getCases } from "@/lib/api/cases";
 import { getDataQuality } from "@/lib/api/data-quality";
@@ -49,6 +49,17 @@ export interface ForecastChartViewModel {
   summary: string;
 }
 
+export interface SharedCashForecastViewModel {
+  balance: string;
+  statusLabel: string;
+  statusTone: StatusTone;
+  shortageLabel: string;
+  confidence: number;
+  confidenceLabel: string;
+  predictionSourceLabel: string;
+  limitation: string;
+}
+
 export interface ForecastDriverViewModel {
   code: string;
   description: string;
@@ -89,6 +100,7 @@ export interface AgentDetailViewModel {
   summary: SummaryMetricViewModel[];
   providerBalances: ProviderBalanceCardViewModel[];
   forecastChart: ForecastChartViewModel;
+  sharedCashForecast: SharedCashForecastViewModel;
   forecastDrivers: ForecastDriverViewModel[];
   calculationRows: CalculationRowViewModel[];
   confidenceFactors: ConfidenceFactorViewModel[];
@@ -161,21 +173,24 @@ function requireForecast(forecasts: LiquidityForecast[], agentId: string): Liqui
 }
 
 export async function loadAgentDetailViewModel(agentId: string): Promise<AgentDetailViewModel> {
-  const [agent, forecasts, transactions, alerts, cases, dataQuality] = await Promise.all([
+  const [agent, forecastBundle, transactions, alerts, cases, dataQuality] = await Promise.all([
     getAgent(agentId),
-    getAgentForecasts(agentId),
+    getAgentForecastBundle(agentId),
     getAgentTransactions(agentId),
     getAlerts(),
     getCases(),
     getDataQuality(),
   ]);
 
-  const forecast = requireForecast(forecasts, agentId);
+  const forecast = requireForecast(forecastBundle.providerForecasts, agentId);
+  const shared = forecastBundle.sharedCashForecast;
   const providerName = providerNames[forecast.providerId];
   const shortageMinutes = forecast.estimatedShortageMinutes ?? 0;
   const status = headerStatus(agent.providerBalances);
   const relatedAlert = alerts.find((alert) => alert.agentId === agentId);
   const relatedCase = cases.find((item) => item.agentId === agentId);
+  const activeAlertCount = alerts.filter((alert) => alert.agentId === agentId && alert.status !== "RESOLVED" && alert.status !== "DISMISSED").length;
+  const openCaseCount = cases.filter((item) => item.agentId === agentId && item.status !== "RESOLVED" && item.status !== "DISMISSED").length;
   const quality = dataQuality.find((item) => item.providerId === forecast.providerId);
 
   return {
@@ -191,10 +206,20 @@ export async function loadAgentDetailViewModel(agentId: string): Promise<AgentDe
     summary: [
       { label: "Shared physical cash", value: formatBDT(agent.sharedPhysicalCashMinor), description: "Available across providers at this outlet." },
       { label: "Total provider value", value: formatBDT(agent.totalProviderValueMinor), description: "Latest simulated balances across all providers." },
-      { label: "Active alerts", value: String(agent.activeAlertCount), description: "Signals requiring operational review.", status: { label: "Review", tone: "review" } },
-      { label: "Open cases", value: String(agent.openCaseCount), description: "Cases with an active SLA.", status: { label: "Critical", tone: "critical" } },
+      { label: "Active alerts", value: String(activeAlertCount), description: "Signals requiring operational review.", status: { label: activeAlertCount > 0 ? "Review" : "Clear", tone: activeAlertCount > 0 ? "review" : "healthy" } },
+      { label: "Open cases", value: String(openCaseCount), description: "Cases with an active SLA.", status: { label: openCaseCount > 0 ? "Open" : "None", tone: openCaseCount > 0 ? "critical" : "healthy" } },
     ],
     providerBalances: agent.providerBalances.map(providerBalanceCard),
+    sharedCashForecast: {
+      balance: formatBDT(shared.currentBalanceMinor),
+      statusLabel: shared.forecastBlocked ? "Forecast blocked" : readableStatus(shared.pressureStatus),
+      statusTone: shared.forecastBlocked ? "unknown" : statusTone(shared.pressureStatus),
+      shortageLabel: shared.forecastBlocked ? "Unavailable until provider data is reconciled" : shared.estimatedShortageMinutes === null ? "No shortage projected in the current horizon" : `Approximately ${formatDuration(shared.estimatedShortageMinutes)}`,
+      confidence: shared.confidence * 100,
+      confidenceLabel: formatConfidence(shared.confidence),
+      predictionSourceLabel: predictionSourceLabels[shared.predictionSource],
+      limitation: shared.dataQualityLimitations[0] ?? "Shared physical cash is forecast separately from provider balances.",
+    },
     forecastChart: {
       providerName,
       shortageMinutes,
@@ -231,7 +256,7 @@ export async function loadAgentDetailViewModel(agentId: string): Promise<AgentDe
       statusTone: transaction.status === "SUCCESS" ? "healthy" : transaction.status === "PENDING" ? "watch" : "critical",
     })),
     recommendedNextStep: {
-      message: "Contact the outlet to verify expected Nagad demand. Consider provider-approved operational coordination with an eligible nearby agent.",
+      message: `Contact the outlet to verify expected ${providerName} demand. Consider provider-approved operational coordination with an eligible nearby agent.`,
       disclaimer: "No transfer or financial action has been initiated.",
       runAnalysisHref: `/agents/${agent.agentId}/analysis`,
       alertHref: relatedAlert ? `/alerts/${relatedAlert.alertId}` : null,

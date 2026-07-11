@@ -7,6 +7,7 @@ export interface DataQualityIssue {
 }
 
 export interface DataQualityResult {
+  agentId?: string;
   providerId: ProviderId;
   status: DataHealthStatus;
   freshness: Confidence;

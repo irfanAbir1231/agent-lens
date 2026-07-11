@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Panel } from "@/components/ui/panel";
 import { AccessNotice } from "@/features/authorization/access-notice";
 import { useDemoRole } from "@/features/authorization/demo-role-context";
 import type { CaseDetailViewModel } from "@/features/cases/cases-view-model";
 import { formatCaseStatus } from "@/features/cases/cases-view-model";
-import { mutateCase } from "@/lib/api/cases";
+import { getCase, mutateCase } from "@/lib/api/cases";
 import { apiConfig } from "@/lib/api/config";
-import type { CaseEvent, CaseNote, CaseStatus, HumanDecision } from "@/types";
+import type { CaseEvent, CaseNote, CaseStatus, HumanDecision, OperationalCase } from "@/types";
 import { AiRecommendationReview } from "./ai-recommendation-review";
 import { CaseActions } from "./case-actions";
 import { CaseHeader } from "./case-header";
@@ -20,23 +20,40 @@ import { EvidenceSummary } from "./evidence-summary";
 import type { DecisionSubmission } from "./human-decision-form";
 
 const now = () => new Date().toISOString();
-type MutationBody = Record<string, string | number | { title: string; action_category: string }[]>;
+type ModifiedActionBody = { title: string; action_category: string; provider?: string };
+type MutationBody = Record<string, string | number | ModifiedActionBody[]>;
 
 export function CaseWorkspace({ viewModel }: { viewModel: CaseDetailViewModel }) {
-  const { roleLabel } = useDemoRole();
+  const { role, roleLabel } = useDemoRole();
   const [status, setStatus] = useState<CaseStatus>(viewModel.status);
   const [events, setEvents] = useState<CaseEvent[]>(viewModel.timeline);
   const [notes, setNotes] = useState<CaseNote[]>(viewModel.notes);
   const [decision, setDecision] = useState<HumanDecision | null>(viewModel.humanDecision);
   const [version, setVersion] = useState(viewModel.backendVersion);
+  const [owner, setOwner] = useState(viewModel.owner);
+  const [recipient, setRecipient] = useState(viewModel.recipient);
+  const [capabilities, setCapabilities] = useState(viewModel.backendCapabilities);
+  const [allowedActions, setAllowedActions] = useState(viewModel.allowedActions);
   const [announcement, setAnnouncement] = useState("");
   const [pending, setPending] = useState(false);
   const addEvent = (action: string) => setEvents((current) => [...current, { eventId: `LOCAL-EVENT-${current.length + 1}`, occurredAt: now(), action, actorName: roleLabel }]);
   const announce = (message: string) => setAnnouncement(apiConfig.mode === "fastapi" ? `${message} Persisted by FastAPI.` : `${message} Demo-only local state - not persisted after refresh.`);
-  const applyBackend = (record: NonNullable<Awaited<ReturnType<typeof mutateCase>>>) => {
+  const applyBackend = useCallback((record: OperationalCase) => {
     setStatus(record.status); setEvents(record.timeline); setNotes(record.notes);
-    setDecision(record.humanDecision); setVersion(record.backendVersion ?? version + 1);
-  };
+    setDecision(record.humanDecision); setVersion(record.backendVersion ?? 1);
+    setOwner(record.owner); setRecipient(record.recipient); setCapabilities(record.backendCapabilities);
+    setAllowedActions(record.allowedActions ?? []);
+  }, []);
+  useEffect(() => {
+    if (apiConfig.mode !== "fastapi") return;
+    let active = true;
+    setPending(true);
+    getCase(viewModel.caseId)
+      .then((record) => { if (active) applyBackend(record); })
+      .catch((error: unknown) => { if (active) setAnnouncement(error instanceof Error ? error.message : "Unable to refresh case permissions."); })
+      .finally(() => { if (active) setPending(false); });
+    return () => { active = false; };
+  }, [applyBackend, role, viewModel.caseId]);
   const perform = async (action: string, body: MutationBody, fallback: () => void, message: string) => {
     setPending(true);
     try {
@@ -48,13 +65,15 @@ export function CaseWorkspace({ viewModel }: { viewModel: CaseDetailViewModel })
     } finally { setPending(false); }
   };
   const acknowledge = () => void perform("acknowledge", {}, () => { setStatus("ACKNOWLEDGED"); addEvent("Case acknowledged locally"); }, "Case acknowledged.");
+  const assign = (assigneeId: string) => void perform("assign", { assignee_id: assigneeId }, () => { setOwner(assigneeId); if (status === "NEW") setStatus("ASSIGNED"); addEvent(`Case assigned to ${assigneeId}`); }, "Case assignment updated.");
   const addNote = (body: string) => void perform("notes", { body }, () => { setNotes((current) => [...current, { noteId: `LOCAL-NOTE-${current.length + 1}`, createdAt: now(), authorName: roleLabel, body }]); addEvent("Case note added"); }, "Note added.");
   const escalate = (reason: string) => void perform("escalate", { reason }, () => { setStatus("ESCALATED"); addEvent(`Escalated for risk review: ${reason}`); }, "Case escalated for risk review.");
   const resolve = (resolution: string, note: string) => void perform("resolve", { resolution_category: resolution, resolution_note: note }, () => { setStatus("RESOLVED"); addEvent(`Case resolved as ${resolution}: ${note}`); }, "Case resolved.");
+  const dismiss = (reason: string) => void perform("dismiss", { reason }, () => { setStatus("DISMISSED"); addEvent(`Case dismissed: ${reason}`); }, "Case dismissed.");
   const recordDecision = (submission: DecisionSubmission) => {
     const reviewNotes = submission.notes ? `; notes: ${submission.notes}` : "";
     const fallback = () => { setDecision(submission.decision); addEvent(`Human decision recorded: ${formatCaseStatus(submission.decision)} for recommendation ${submission.recommendation} - ${submission.reason}${reviewNotes}`); };
-    const modifiedActions = submission.modifiedAction ? [{ title: submission.modifiedAction, action_category: "MODIFIED_RECOMMENDATION" }] : [];
+    const modifiedActions: ModifiedActionBody[] = submission.modifiedAction ? [{ title: submission.modifiedAction, action_category: submission.modifiedActionCategory, ...(viewModel.providerId ? { provider: viewModel.providerId } : {}) }] : [];
     void perform("human-decision", { decision: submission.decision, note: `${submission.reason}${reviewNotes}`, modified_actions: modifiedActions }, fallback, `${formatCaseStatus(submission.decision)} decision recorded.`);
   };
 
@@ -63,10 +82,10 @@ export function CaseWorkspace({ viewModel }: { viewModel: CaseDetailViewModel })
     <AccessNotice />
     <p className="rounded-md border border-[var(--color-border)] bg-[var(--color-panel-subtle)] p-3 text-sm font-semibold text-[var(--color-text-secondary)]">{apiConfig.mode === "fastapi" ? "Case actions are persisted and authorized by FastAPI." : "Demo-only local state - not persisted after refresh."}{pending ? " Saving..." : ""}</p>
     <div aria-live="polite" className="min-h-6 text-sm font-semibold text-[var(--color-accent)]">{announcement}</div>
-    <section aria-labelledby="ownership-heading"><h2 id="ownership-heading" className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">Ownership and SLA</h2><CaseOwnership recipient={viewModel.recipient} owner={viewModel.owner} priority={viewModel.priority} sla={viewModel.sla} /></section>
+    <section aria-labelledby="ownership-heading"><h2 id="ownership-heading" className="mb-4 text-lg font-semibold text-[var(--color-text-primary)]">Ownership and SLA</h2><CaseOwnership recipient={recipient} owner={owner} priority={viewModel.priority} sla={viewModel.sla} /></section>
     <CaseRecommendation />
-    <Panel title="AI recommendation review" description="Original advisory and separate human decision record."><AiRecommendationReview advisory={viewModel.advisory} disabled={status === "RESOLVED" || pending || viewModel.backendCapabilities?.canDecide === false} decisionLabel={decision ? formatCaseStatus(decision) : ""} onDecision={recordDecision} /></Panel>
-    <Panel title="Case actions" description={apiConfig.mode === "fastapi" ? "Actions use backend capabilities and optimistic version checks." : "Demo-only controls update this workspace until refresh."}><CaseActions status={status} capabilities={viewModel.backendCapabilities} onAcknowledge={acknowledge} onAddNote={addNote} onEscalate={escalate} onResolve={resolve} /></Panel>
+    <Panel title="AI recommendation review" description="Original advisory and separate human decision record."><AiRecommendationReview advisory={viewModel.advisory} disabled={status === "RESOLVED" || status === "DISMISSED" || pending || capabilities?.canDecide === false} decisionLabel={decision ? formatCaseStatus(decision) : ""} allowedDecisions={capabilities?.allowedHumanDecisions ?? ["APPROVED", "MODIFIED", "REJECTED", "ESCALATED", "CONTINUE_MONITORING"]} allowedActions={allowedActions} providerId={viewModel.providerId} onDecision={recordDecision} /></Panel>
+    <Panel title="Case actions" description={apiConfig.mode === "fastapi" ? "Actions use backend capabilities and optimistic version checks." : "Demo-only controls update this workspace until refresh."}><CaseActions status={status} owner={owner} capabilities={capabilities} onAssign={assign} onAcknowledge={acknowledge} onAddNote={addNote} onEscalate={escalate} onResolve={resolve} onDismiss={dismiss} /></Panel>
     <Panel title="Evidence summary" description="Key deterministic signals linked to the originating alert."><EvidenceSummary alertId={viewModel.alertId} /></Panel>
     <div className="grid gap-5 lg:grid-cols-2"><Panel title="Notes" description="Human review notes."><CaseNotes notes={notes} /></Panel><Panel title="Timeline" description="Ordered case history."><CaseTimeline events={events} /></Panel></div>
     <Panel title="Resolution guidance"><p className="text-sm leading-6 text-[var(--color-text-secondary)]">A combined case should close only after the operational issue is resolved or monitored and the unusual-activity review is complete or externally escalated.</p></Panel>

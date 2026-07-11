@@ -7,7 +7,7 @@ import type { AlertStatus, ProviderId, Severity } from "@/types";
 export interface AlertListRowViewModel {
   alertId: string;
   title: string;
-  providerId: ProviderId;
+  providerId: ProviderId | null;
   provider: string;
   agentId: string;
   alertType: string;
@@ -42,6 +42,7 @@ export interface AlertDetailViewModel {
 }
 
 const providerLabels: Record<ProviderId, string> = { BKASH: "bKash", NAGAD: "Nagad", ROCKET: "Rocket" };
+const providerLabel = (providerId: ProviderId | null) => providerId ? providerLabels[providerId] : "Shared cash / agent";
 const sourceLabels: Record<string, string> = {
   "LIQ-SOP-3.2": "Liquidity Support SOP - Section 3.2",
   "UNUSUAL-REVIEW-2.1": "Unusual Activity Review Policy - Section 2.1",
@@ -50,18 +51,19 @@ const sourceLabels: Record<string, string> = {
 
 export async function loadAlertListViewModel(): Promise<AlertListViewModel> {
   const alerts = await getAlerts();
+  const open = alerts.filter((alert) => alert.status !== "RESOLVED" && alert.status !== "DISMISSED");
   return {
     metrics: [
-      { label: "Total open alerts", value: "7", description: "Across all provider workflows", tone: "neutral" },
-      { label: "Critical", value: "2", description: "Require immediate coordination", tone: "critical" },
-      { label: "Requires review", value: "3", description: "Awaiting human context", tone: "review" },
-      { label: "Data-quality alerts", value: "1", description: "Recommendations are limited", tone: "watch" },
+      { label: "Total open alerts", value: String(open.length), description: "Across provider and agent workflows", tone: "neutral" },
+      { label: "Critical", value: String(open.filter((alert) => alert.severity === "CRITICAL").length), description: "Require immediate coordination", tone: "critical" },
+      { label: "Requires review", value: String(open.filter((alert) => alert.alertType === "UNUSUAL_ACTIVITY" || alert.alertType === "COMBINED_OPERATIONAL_REVIEW").length), description: "Awaiting human context", tone: "review" },
+      { label: "Data-quality alerts", value: String(open.filter((alert) => alert.alertType === "DATA_QUALITY").length), description: "Recommendations are limited", tone: "watch" },
     ],
     rows: alerts.map((alert) => ({
       alertId: alert.alertId,
       title: alert.title,
       providerId: alert.providerId,
-      provider: providerLabels[alert.providerId],
+      provider: providerLabel(alert.providerId),
       agentId: alert.agentId,
       alertType: formatStatus(alert.alertType),
       severity: alert.severity,
@@ -80,7 +82,7 @@ export async function loadAlertDetailViewModel(alertId: string): Promise<AlertDe
     alertId: alert.alertId,
     caseId: analysis.caseId ?? relatedCase?.caseId ?? null,
     title: alert.title,
-    provider: providerLabels[alert.providerId],
+    provider: providerLabel(alert.providerId),
     agentId: alert.agentId,
     severity: formatStatus(alert.severity),
     confidence: formatConfidence(alert.confidence),

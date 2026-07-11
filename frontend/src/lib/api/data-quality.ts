@@ -9,7 +9,7 @@ export async function getDataQuality(): Promise<DataQualityResult[]> {
   if (apiConfig.mode === "mock") return mockResponse(dataQualityResults);
   const response = await fastApiClient.dataQuality<DataQualityDto>();
   return response.results.flatMap((agent) => agent.provider_results.map((item) => ({
-    providerId: item.provider, status: item.status, freshness: item.component_scores.freshness,
+    agentId: agent.agent_id, providerId: item.provider, status: item.status, freshness: item.component_scores.freshness,
     completeness: item.component_scores.completeness, consistency: item.component_scores.consistency,
     sampleSize: item.component_scores.validity, confidenceMultiplier: item.confidence_multiplier,
     allowForecast: item.allow_forecast, allowAIAdvisory: item.allow_ai_advisory,

@@ -6,6 +6,7 @@ import { AlertHeader } from "@/features/alerts/components/alert-header";
 import { BaselineComparison } from "@/features/alerts/components/baseline-comparison";
 import { EvidenceList } from "@/features/alerts/components/evidence-list";
 import { LegitimateExplanations } from "@/features/alerts/components/legitimate-explanations";
+import { LocalizedAlertExplanation } from "@/features/alerts/components/localized-alert-explanation";
 import { RecommendedReview } from "@/features/alerts/components/recommended-review";
 import { SituationSummary } from "@/features/alerts/components/situation-summary";
 import { UncertaintyPanel } from "@/features/alerts/components/uncertainty-panel";
@@ -23,6 +24,7 @@ export default async function AlertEvidencePage({ params }: { params: { alertId:
     <div className="space-y-7">
       <AlertHeader alert={alert} />
       <Panel title="Situation summary" description="Activity compared with the outlet's recent simulated baseline."><SituationSummary summary={alert.summary} disclaimer={alert.disclaimer} /></Panel>
+      <Panel title="বাংলা ও English alert explanation" description="Situation, evidence, uncertainty, and a safe next step using the same deterministic alert values."><LocalizedAlertExplanation evidence={alert.evidence} /></Panel>
       <Panel title="Evidence" description="Deterministic indicators contributing to this operational signal."><EvidenceList evidence={alert.evidence} /></Panel>
       <Panel title="Baseline comparison" description="Ordinary-day, contextual, and current simulated activity."><BaselineComparison /><p className="mt-6 rounded-md bg-[var(--color-panel-subtle)] p-4 text-sm leading-6 text-[var(--color-text-secondary)]">The activity remains above the contextual Eid and salary-day baseline, but the difference is smaller than comparison with an ordinary day.</p></Panel>
       <div className="grid gap-5 lg:grid-cols-2">
