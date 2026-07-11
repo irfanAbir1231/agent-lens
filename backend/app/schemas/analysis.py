@@ -11,11 +11,11 @@ from app.schemas.forecast import LiquidityForecastResponse, ProviderLiquidityFor
 
 
 class ProviderAnalysisResult(AgentLensSchema):
-    provider: Provider
+    provider: Provider | None
     actionable: bool
     eligible_for_ai: bool
     alert: AlertDetail
-    forecast: ProviderLiquidityForecast
+    forecast: ProviderLiquidityForecast | None
 
 
 class AnalysisResponse(AgentLensSchema):

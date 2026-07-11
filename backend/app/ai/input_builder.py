@@ -41,6 +41,10 @@ def build_advisory_input(
 def _provider_context(
     alert: AlertDetail, forecast: ProviderLiquidityForecast
 ) -> AdvisoryProviderContext:
+    if alert.provider is None:
+        raise UnsafeAdvisoryInputError(
+            "Agent-scoped alerts cannot enter a provider advisory payload."
+        )
     return AdvisoryProviderContext(
         provider=alert.provider,
         data_quality_status=DataHealthStatus(alert.anomaly.data_quality_status),

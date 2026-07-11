@@ -15,11 +15,16 @@ from app.db.models import (
     AlertRecord,
     AnalysisRecord,
     Area,
+    AuditEventRecord,
+    CaseNoteRecord,
+    CaseRecord,
+    HumanDecisionRecord,
     PolicySnippet,
     ProviderBalance,
     ProviderFeedState,
     Scenario,
     SimilarCaseSummary,
+    SyntheticUser,
     Transaction,
 )
 from app.schemas.common import ensure_utc_datetime
@@ -30,6 +35,7 @@ from app.schemas.enums import (
     ScenarioId,
     TransactionStatus,
     TransactionType,
+    UserRole,
 )
 
 PROVIDER_ORDER = [Provider.BKASH, Provider.NAGAD, Provider.ROCKET]
@@ -292,12 +298,17 @@ def write_generated_summary(
 
 def _clear_existing_data(session: Session) -> None:
     for model in (
+        AuditEventRecord,
+        HumanDecisionRecord,
+        CaseNoteRecord,
+        CaseRecord,
         AlertRecord,
         AnalysisRecord,
         Transaction,
         ProviderFeedState,
         ProviderBalance,
         Agent,
+        SyntheticUser,
         Area,
         PolicySnippet,
         SimilarCaseSummary,
@@ -401,6 +412,75 @@ def _insert_seed_data(session: Session, manifest: ScenarioManifest, seed: int) -
 
     session.add_all(_policy_snippets())
     session.add_all(_similar_case_summaries())
+    session.add_all(_synthetic_users())
+
+
+def _synthetic_users() -> list[SyntheticUser]:
+    definitions = [
+        ("USER-SYS-001", "System administrator", UserRole.SYSTEM_ADMIN, [], [], []),
+        ("USER-RISK-001", "Risk analyst", UserRole.RISK_ANALYST, [], [], []),
+        (
+            "USER-BKASH-OPS",
+            "BKASH operations",
+            UserRole.PROVIDER_OPERATIONS,
+            ["BKASH"],
+            [],
+            [],
+        ),
+        (
+            "USER-NAGAD-OPS",
+            "Nagad operations",
+            UserRole.PROVIDER_OPERATIONS,
+            ["NAGAD"],
+            [],
+            [],
+        ),
+        (
+            "USER-ROCKET-OPS",
+            "Rocket operations",
+            UserRole.PROVIDER_OPERATIONS,
+            ["ROCKET"],
+            [],
+            [],
+        ),
+        (
+            "USER-AREA-003",
+            "Area manager 003",
+            UserRole.AREA_MANAGER,
+            [],
+            ["AREA-003"],
+            [],
+        ),
+        (
+            "USER-FIELD-104",
+            "Field officer 104",
+            UserRole.FIELD_OFFICER,
+            [],
+            ["AREA-003"],
+            ["AGENT-104"],
+        ),
+        ("USER-VIEW-001", "Management viewer", UserRole.MANAGEMENT_VIEWER, [], [], []),
+        (
+            "USER-AGENT-104",
+            "Synthetic agent 104",
+            UserRole.AGENT,
+            [],
+            ["AREA-003"],
+            ["AGENT-104"],
+        ),
+    ]
+    return [
+        SyntheticUser(
+            id=user_id,
+            display_label=label,
+            role=role.value,
+            provider_scopes=providers,
+            area_scopes=areas,
+            agent_scopes=agents,
+            is_active=True,
+        )
+        for user_id, label, role, providers, areas, agents in definitions
+    ]
 
 
 def _policy_snippets() -> list[PolicySnippet]:

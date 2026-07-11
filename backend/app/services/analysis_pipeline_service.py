@@ -11,9 +11,11 @@ from app.ai.fallback import no_advisory_guidance
 from app.ai.input_builder import UnsafeAdvisoryInputError, build_advisory_input
 from app.ai.prompts.advisory import ADVISORY_PROMPT_VERSION
 from app.ai.prompts.system import SYSTEM_PROMPT_VERSION
+from app.audit.service import AuditService
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.repositories.analysis_repository import AnalysisRepository
+from app.repositories.case_repository import CaseRepository
 from app.schemas.advisory import AdvisorySummary
 from app.schemas.alert import AlertDetail
 from app.schemas.analysis import AnalysisResponse, ProviderAnalysisResult
@@ -33,7 +35,7 @@ from app.services.analysis_fingerprint import (
 )
 from app.services.forecast_service import ForecastService
 
-PIPELINE_VERSION = "analysis-pipeline-v1"
+PIPELINE_VERSION = "analysis-pipeline-v2"
 PROMPT_VERSION = f"{SYSTEM_PROMPT_VERSION}|{ADVISORY_PROMPT_VERSION}"
 BLOCKED_STATUSES = {
     DataHealthStatus.CONFLICTING,
@@ -48,7 +50,10 @@ class AnalysisPipelineService:
         settings: Settings,
         advisory_client: AdvisoryClient | None = None,
     ) -> None:
+        self._session = session
         self._repository = AnalysisRepository(session)
+        self._cases = CaseRepository(session)
+        self._audit = AuditService(session)
         self._alerts = AlertService(session)
         self._forecasts = ForecastService(session)
         self._settings = settings
@@ -81,6 +86,12 @@ class AnalysisPipelineService:
         )
         if not claimed:
             return _existing_response(record, fingerprint)
+        self._audit.record(
+            "ANALYSIS_STARTED",
+            analysis_id=analysis_id,
+            metadata={"pipeline_version": PIPELINE_VERSION},
+        )
+        self._session.commit()
 
         by_provider = {
             Provider(item.provider): item for item in forecasts.provider_forecasts
@@ -91,12 +102,15 @@ class AnalysisPipelineService:
         eligible = [
             item
             for item in actionable
-            if item.risk.allow_ai_advisory
+            if item.provider is not None
+            and item.risk.allow_ai_advisory
             and DataHealthStatus(item.anomaly.data_quality_status)
             not in BLOCKED_STATUSES
         ]
         excluded = [
-            Provider(item.provider) for item in actionable if item not in eligible
+            Provider(item.provider)
+            for item in actionable
+            if item.provider is not None and item not in eligible
         ]
         advisory = self._advisory(
             analysis_id=analysis_id,
@@ -109,15 +123,50 @@ class AnalysisPipelineService:
         persisted_alerts: list[AlertDetail] = []
         for alert in actionable:
             persisted = alert.model_copy(
-                update={"analysis_id": analysis_id, "is_persisted": True}
+                update={
+                    "analysis_id": analysis_id,
+                    "is_persisted": True,
+                    "status": "TRIAGED",
+                }
             )
-            self._repository.upsert_alert(
+            created = self._repository.upsert_alert(
                 alert=persisted,
                 analysis_id=analysis_id,
                 scenario_id=scenario.id,
                 input_fingerprint=alert_input_fingerprint(alert),
                 now=completed_at,
             )
+            case, case_created = self._cases.upsert_for_alert(
+                persisted, analysis_id=analysis_id, now=completed_at
+            )
+            self._audit.record(
+                "ALERT_CREATED" if created else "ALERT_UPDATED",
+                alert_id=alert.id,
+                analysis_id=analysis_id,
+                metadata={"scope": "PROVIDER" if alert.provider else "AGENT"},
+            )
+            self._audit.record(
+                "ALERT_TRIAGED",
+                case_id=case.id,
+                alert_id=alert.id,
+                analysis_id=analysis_id,
+                after_status="TRIAGED",
+                case_version=case.version,
+            )
+            if case_created:
+                self._audit.record(
+                    "CASE_CREATED",
+                    case_id=case.id,
+                    alert_id=alert.id,
+                    analysis_id=analysis_id,
+                    after_status=case.status,
+                    case_version=case.version,
+                    metadata={
+                        "scope_type": case.scope_type,
+                        "provider": case.provider,
+                        "required_role": case.required_role,
+                    },
+                )
             persisted_alerts.append(persisted)
         persisted_by_id = {item.id: item for item in persisted_alerts}
         provider_results = [
@@ -126,7 +175,11 @@ class AnalysisPipelineService:
                 actionable=Severity(item.severity) != Severity.LOW,
                 eligible_for_ai=item in eligible,
                 alert=persisted_by_id.get(item.id, item),
-                forecast=by_provider[Provider(item.provider)],
+                forecast=(
+                    by_provider[Provider(item.provider)]
+                    if item.provider is not None
+                    else None
+                ),
             )
             for item in alerts
         ]
@@ -145,6 +198,23 @@ class AnalysisPipelineService:
             alert_ids=[item.id for item in persisted_alerts],
             excluded_providers=list(dict.fromkeys(excluded)),
             advisory=advisory,
+        )
+        if advisory.advisory_status in {
+            AIAdvisoryStatus.BLOCKED_BY_DATA_QUALITY.value,
+            AIAdvisoryStatus.FAILED.value,
+        }:
+            self._audit.record(
+                "AI_ADVISORY_BLOCKED"
+                if advisory.advisory_status
+                == AIAdvisoryStatus.BLOCKED_BY_DATA_QUALITY.value
+                else "AI_ADVISORY_FAILED",
+                analysis_id=analysis_id,
+                metadata={"error_category": advisory.error_category},
+            )
+        self._audit.record(
+            "ANALYSIS_COMPLETED",
+            analysis_id=analysis_id,
+            metadata={"advisory_status": advisory.advisory_status},
         )
         self._repository.complete(
             record,
@@ -172,7 +242,9 @@ class AnalysisPipelineService:
                     analysis_id=analysis_id,
                     agent_id=agent_id,
                     eligible=[
-                        (item, forecasts[Provider(item.provider)]) for item in eligible
+                        (item, forecasts[Provider(item.provider)])
+                        for item in eligible
+                        if item.provider is not None
                     ],
                 )
             except UnsafeAdvisoryInputError:

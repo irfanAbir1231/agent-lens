@@ -11,7 +11,7 @@ from app.schemas.risk import RiskAssessment
 class AlertSummary(AgentLensSchema):
     id: str
     agent_id: str
-    provider: Provider
+    provider: Provider | None
     alert_type: AlertType
     status: AlertStatus
     severity: Severity
@@ -30,7 +30,7 @@ class RetrievalSource(AgentLensSchema):
 
 class AlertDetail(AlertSummary):
     analysis_id: str | None = None
-    provider_scope: Provider
+    provider_scope: Provider | None
     anomaly: AnomalyResult
     risk: RiskAssessment
     limitations: list[str]

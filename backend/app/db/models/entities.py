@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     ForeignKey,
     Integer,
     String,
@@ -194,7 +195,7 @@ class AlertRecord(Base):
     analysis_id: Mapped[str] = mapped_column(
         ForeignKey("analysis_records.id"), nullable=False, index=True
     )
-    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
     alert_type: Mapped[str] = mapped_column(String(64), nullable=False)
     severity: Mapped[str] = mapped_column(String(32), nullable=False)
     priority: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -203,3 +204,110 @@ class AlertRecord(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
+class SyntheticUser(Base):
+    __tablename__ = "synthetic_users"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    display_label: Mapped[str] = mapped_column(String(128), nullable=False)
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider_scopes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    area_scopes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    agent_scopes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class CaseRecord(Base):
+    __tablename__ = "case_records"
+    __table_args__ = (
+        CheckConstraint(
+            "(scope_type = 'PROVIDER' AND provider IS NOT NULL) OR "
+            "(scope_type = 'AGENT' AND provider IS NULL)",
+            name="ck_case_scope_provider",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    alert_id: Mapped[str] = mapped_column(
+        ForeignKey("alert_records.id"), nullable=False, unique=True, index=True
+    )
+    analysis_id: Mapped[str] = mapped_column(
+        ForeignKey("analysis_records.id"), nullable=False, index=True
+    )
+    agent_id: Mapped[str] = mapped_column(
+        ForeignKey("agents.id"), nullable=False, index=True
+    )
+    area_id: Mapped[str] = mapped_column(
+        ForeignKey("areas.id"), nullable=False, index=True
+    )
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    severity: Mapped[str] = mapped_column(String(32), nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False)
+    required_role: Mapped[str] = mapped_column(String(32), nullable=False)
+    allowed_actions: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    assigned_to: Mapped[str | None] = mapped_column(
+        ForeignKey("synthetic_users.id"), nullable=True, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    resolution_category: Mapped[str | None] = mapped_column(String(64))
+    resolution_note: Mapped[str | None] = mapped_column(Text)
+    dismissal_reason: Mapped[str | None] = mapped_column(Text)
+
+
+class CaseNoteRecord(Base):
+    __tablename__ = "case_note_records"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        ForeignKey("case_records.id"), nullable=False, index=True
+    )
+    author_id: Mapped[str] = mapped_column(
+        ForeignKey("synthetic_users.id"), nullable=False
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+
+class HumanDecisionRecord(Base):
+    __tablename__ = "human_decision_records"
+    __table_args__ = (
+        UniqueConstraint("case_id", "fingerprint", name="uq_case_decision_fingerprint"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        ForeignKey("case_records.id"), nullable=False, index=True
+    )
+    actor_id: Mapped[str] = mapped_column(
+        ForeignKey("synthetic_users.id"), nullable=False
+    )
+    decision: Mapped[str] = mapped_column(String(32), nullable=False)
+    modified_actions: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    note: Mapped[str] = mapped_column(Text, nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    case_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+
+class AuditEventRecord(Base):
+    __tablename__ = "audit_event_records"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    action: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    actor_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    actor_role: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    case_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    alert_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    analysis_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    before_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    after_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    case_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)

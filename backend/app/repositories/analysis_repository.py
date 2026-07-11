@@ -82,7 +82,7 @@ class AnalysisRepository:
         scenario_id: str,
         input_fingerprint: str,
         now: datetime,
-    ) -> None:
+    ) -> bool:
         record = self._session.get(AlertRecord, alert.id)
         snapshot = alert.model_copy(
             update={"analysis_id": analysis_id, "is_persisted": True}
@@ -93,7 +93,7 @@ class AnalysisRepository:
                 agent_id=alert.agent_id,
                 scenario_id=scenario_id,
                 analysis_id=analysis_id,
-                provider=str(alert.provider),
+                provider=str(alert.provider) if alert.provider is not None else None,
                 alert_type=str(alert.alert_type),
                 severity=str(alert.severity),
                 priority=alert.priority,
@@ -104,7 +104,9 @@ class AnalysisRepository:
                 snapshot_json=snapshot,
             )
             self._session.add(record)
+            created = True
         else:
+            created = False
             record.analysis_id = analysis_id
             record.scenario_id = scenario_id
             record.input_fingerprint = input_fingerprint
@@ -113,6 +115,7 @@ class AnalysisRepository:
             record.priority = alert.priority
             record.updated_at = now
             record.snapshot_json = snapshot
+        return created
 
     def list_alert_snapshots(
         self, *, scenario_id: str, input_fingerprints: set[str]

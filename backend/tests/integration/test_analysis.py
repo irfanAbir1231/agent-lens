@@ -15,7 +15,14 @@ from app.ai.schemas import SanitizedAdvisoryInput
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.db.initialization import create_engine_and_session_factory, initialize_database
-from app.db.models import AlertRecord, AnalysisRecord, PolicySnippet, Transaction
+from app.db.models import (
+    AlertRecord,
+    AnalysisRecord,
+    AuditEventRecord,
+    CaseRecord,
+    PolicySnippet,
+    Transaction,
+)
 from app.db.seed.service import seed_database
 from app.schemas.advisory import (
     AdvisoryAction,
@@ -109,6 +116,15 @@ def test_success_is_idempotent_and_alerts_are_upserted_once(tmp_path: Path) -> N
         )
         assert session.scalar(select(func.count()).select_from(AnalysisRecord)) == 1
         assert session.scalar(select(func.count()).select_from(AlertRecord)) == 1
+        assert session.scalar(select(func.count()).select_from(CaseRecord)) == 1
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AuditEventRecord)
+                .where(AuditEventRecord.action == "CASE_CREATED")
+            )
+            == 1
+        )
     engine.dispose()
 
     assert client.calls == 1

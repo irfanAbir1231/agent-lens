@@ -1,1 +1,1 @@
-
+"""Backend-authoritative workflow authorization."""
