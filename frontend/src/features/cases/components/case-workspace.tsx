@@ -67,7 +67,7 @@ export function CaseWorkspace({ viewModel }: { viewModel: CaseDetailViewModel })
     <CaseRecommendation />
     <Panel title="AI recommendation review" description="Original advisory and separate human decision record."><AiRecommendationReview advisory={viewModel.advisory} disabled={status === "RESOLVED" || pending || viewModel.backendCapabilities?.canDecide === false} decisionLabel={decision ? formatCaseStatus(decision) : ""} onDecision={recordDecision} /></Panel>
     <Panel title="Case actions" description={apiConfig.mode === "fastapi" ? "Actions use backend capabilities and optimistic version checks." : "Demo-only controls update this workspace until refresh."}><CaseActions status={status} capabilities={viewModel.backendCapabilities} onAcknowledge={acknowledge} onAddNote={addNote} onEscalate={escalate} onResolve={resolve} /></Panel>
-    <Panel title="Evidence summary" description="Key deterministic signals linked to the originating alert."><EvidenceSummary /></Panel>
+    <Panel title="Evidence summary" description="Key deterministic signals linked to the originating alert."><EvidenceSummary alertId={viewModel.alertId} /></Panel>
     <div className="grid gap-5 lg:grid-cols-2"><Panel title="Notes" description="Human review notes."><CaseNotes notes={notes} /></Panel><Panel title="Timeline" description="Ordered case history."><CaseTimeline events={events} /></Panel></div>
     <Panel title="Resolution guidance"><p className="text-sm leading-6 text-[var(--color-text-secondary)]">A combined case should close only after the operational issue is resolved or monitored and the unusual-activity review is complete or externally escalated.</p></Panel>
   </div>;

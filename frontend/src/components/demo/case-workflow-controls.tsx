@@ -98,7 +98,7 @@ export function CaseWorkflowControls() {
         ) : null}
       </Panel>
 
-      <Panel title="Evidence summary" description="Key operational and activity-review indicators for this case."><EvidenceSummary /></Panel>
+      <Panel title="Evidence summary" description="Key operational and activity-review indicators for this case."><EvidenceSummary alertId={caseData.alertId} /></Panel>
       <div className="grid gap-5 xl:grid-cols-2">
         <Panel title="Notes" description="Verified context and locally added demo notes."><CaseNotes notes={notes} /></Panel>
         <Panel title="Timeline" description="Case events in chronological order."><CaseTimeline events={events} /></Panel>

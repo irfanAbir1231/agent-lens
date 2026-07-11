@@ -1,5 +1,6 @@
 import { getAlerts, getAlert } from "@/lib/api/alerts";
 import { runAgentAnalysis } from "@/lib/api/analysis";
+import { getCases } from "@/lib/api/cases";
 import { formatConfidence, formatDateTime, formatStatus } from "@/lib/formatting";
 import type { AlertStatus, ProviderId, Severity } from "@/types";
 
@@ -23,6 +24,7 @@ export interface AlertListViewModel {
 
 export interface AlertDetailViewModel {
   alertId: string;
+  caseId: string | null;
   title: string;
   provider: string;
   agentId: string;
@@ -73,8 +75,10 @@ export async function loadAlertListViewModel(): Promise<AlertListViewModel> {
 export async function loadAlertDetailViewModel(alertId: string): Promise<AlertDetailViewModel> {
   const alert = await getAlert(alertId);
   const analysis = await runAgentAnalysis(alert.agentId);
+  const relatedCase = analysis.caseId ? null : (await getCases()).find((item) => item.alertId === alert.alertId);
   return {
     alertId: alert.alertId,
+    caseId: analysis.caseId ?? relatedCase?.caseId ?? null,
     title: alert.title,
     provider: providerLabels[alert.providerId],
     agentId: alert.agentId,
