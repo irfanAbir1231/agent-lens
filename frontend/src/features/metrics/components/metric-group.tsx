@@ -1,0 +1,2 @@
+import { MetricCard } from "@/components/ui/metric-card"; import { Panel } from "@/components/ui/panel"; import type { ReactNode } from "react";
+export function MetricGroup({title,description,metrics,children}:{title:string;description:string;metrics:{label:string;value:string;description:string}[];children?:ReactNode}) { return <Panel title={title} description={description}><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{metrics.map(m=><MetricCard key={m.label} {...m}/>)}</div>{children}</Panel>; }

@@ -1,0 +1,2 @@
+import { MetricCard } from "@/components/ui/metric-card";
+export function DataHealthSummary({recovered}:{recovered:boolean}) { const metrics = [["Healthy providers", recovered?"3":"2"], ["Delayed providers", recovered?"0":"1"], ["AI advisory blocked", recovered?"0":"1"], ["Manual verification required", recovered?"0":"1"]]; return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(([label,value])=><MetricCard key={label} label={label} value={value} description="Current provider-isolated status" />)}</div>; }

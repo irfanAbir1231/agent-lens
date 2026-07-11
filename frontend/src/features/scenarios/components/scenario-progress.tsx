@@ -1,0 +1,2 @@
+export const stages=["Loading scenario","Updating synthetic transactions","Running data-quality checks","Forecasting liquidity","Detecting unusual patterns","Creating risk assessment","Generating advisory","Preparing human review"];
+export function ScenarioProgress({stage}:{stage:number}) { return <div role="status" aria-live="polite"><p className="font-semibold">{stage<stages.length?stages[stage]:"Scenario complete"}</p><progress aria-label="Scenario pipeline progress" value={Math.min(stage+1,stages.length)} max={stages.length} className="mt-2 w-full"/></div>; }

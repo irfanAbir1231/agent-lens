@@ -1,0 +1,1 @@
+export function DataIssueHistory() { return <ol className="space-y-3">{[["2:12 PM","Feed delay detected"],["2:16 PM","Missing records detected"],["2:25 PM","Manual verification requested"]].map(([time,event])=><li key={time} className="flex gap-4"><time className="font-semibold">{time}</time><span>{event}</span></li>)}</ol>; }

@@ -1,0 +1,2 @@
+import type { ScenarioControlsValue } from "./scenario-controls";
+export function ScenarioImpactSummary({controls}:{controls:ScenarioControlsValue}) { return <p className="mt-4 rounded-md bg-[var(--color-panel-subtle)] p-4 text-sm">Preview: {controls.provider}, {controls.demand.toFixed(1)}x demand, BDT {controls.cash} cash, {controls.delay} minute delay, repeated transactions {controls.repeated?"on":"off"}.</p>; }

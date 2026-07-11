@@ -2,6 +2,7 @@
 
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DemoRoleSelector } from "@/features/authorization/demo-role-selector";
+import { apiProvider } from "@/lib/api/api-provider";
 
 export function Topbar() {
   return (
@@ -12,6 +13,7 @@ export function Topbar() {
           <StatusBadge label="Data status: 2 Healthy, 1 Delayed" tone="watch" />
           <StatusBadge label="3 active alerts" tone="critical" />
           <span className="text-[var(--color-text-secondary)]">Last updated: 2:42 PM</span>
+          <StatusBadge label={`Data source: ${apiProvider.dataSourceLabel}`} tone="neutral" />
         </div>
         <DemoRoleSelector />
       </div>

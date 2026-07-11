@@ -1,0 +1,1 @@
+export function ManualVerificationPanel({complete}:{complete:boolean}) { return <div className="rounded-md border border-[var(--color-review)] bg-[var(--color-review-soft)] p-4"><strong>Manual verification {complete?"complete":"required"}</strong><p className="mt-1 text-sm">Rocket analysis remains unavailable. bKash and Nagad analysis continue independently.</p></div>; }

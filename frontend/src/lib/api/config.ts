@@ -1,9 +1,10 @@
 export type ApiMode = "mock" | "fastapi";
-
-// The adapter will support "fastapi" when the backend contract is connected.
-export const apiMode: ApiMode = "mock";
+const configuredMode = process.env.NEXT_PUBLIC_API_MODE;
+export const apiMode: ApiMode = configuredMode === "fastapi" ? "fastapi" : "mock";
 
 export const apiConfig = {
   mode: apiMode,
   mockDelayMilliseconds: 120,
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
+  timeoutMilliseconds: 10_000,
 } as const;

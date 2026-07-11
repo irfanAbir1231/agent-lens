@@ -1,0 +1,2 @@
+import { QualityScoreCard } from "./quality-score-card";
+export function ConfidencePenaltyBreakdown({recovered}:{recovered:boolean}) { const scores=recovered?[.98,.99,1,.98]:[.42,.74,.88,.55]; return <div className="space-y-4"><QualityScoreCard label="Freshness penalty result" value={scores[0]}/><QualityScoreCard label="Completeness penalty result" value={scores[1]}/><QualityScoreCard label="Consistency penalty result" value={scores[2]}/><QualityScoreCard label="Final confidence multiplier" value={scores[3]}/></div>; }

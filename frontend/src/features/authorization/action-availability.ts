@@ -1,0 +1,2 @@
+import type { UserRole } from "@/types"; import { hasDemoCapability,type DemoCapability } from "./demo-capabilities";
+export function getActionAvailability(role:UserRole,capability:DemoCapability){const available=hasDemoCapability(role,capability);return{available,reason:available?"":`Unavailable for the selected ${role.toLowerCase().replaceAll("_"," ")} demo role. Backend authorization remains authoritative.`}}
