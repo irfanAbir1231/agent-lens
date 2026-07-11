@@ -1,0 +1,6 @@
+{
+  "id": "conflicting_balance",
+  "name": "Conflicting balance",
+  "description": "A reproducible provider-balance inconsistency is present for review.",
+  "verification_focus": "balance_conflict"
+}

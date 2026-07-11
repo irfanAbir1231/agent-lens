@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentlens-backend"
+version = "0.1.0"
+description = "FastAPI backend foundation for the AgentLens prototype."
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi>=0.116,<1.0",
+  "pydantic>=2.11,<3.0",
+  "pydantic-settings>=2.10,<3.0",
+  "sqlalchemy>=2.0.41,<3.0",
+  "uvicorn>=0.35,<1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28,<1.0",
+  "mypy>=1.17,<2.0",
+  "pytest>=8.4,<9.0",
+  "ruff>=0.12,<1.0",
+]
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.14"
+warn_unused_configs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+strict_equality = true
+pretty = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

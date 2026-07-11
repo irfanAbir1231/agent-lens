@@ -1,0 +1,6 @@
+{
+  "id": "delayed_rocket_feed",
+  "name": "Delayed Rocket feed",
+  "description": "Rocket feed delays are visible while BKASH and NAGAD remain usable.",
+  "verification_focus": "provider_isolation"
+}

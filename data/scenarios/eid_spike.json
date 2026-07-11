@@ -1,0 +1,6 @@
+{
+  "id": "eid_spike",
+  "name": "Eid spike",
+  "description": "Legitimate Eid demand surge with elevated provider usage and velocity.",
+  "verification_focus": "legitimate_high_demand"
+}
