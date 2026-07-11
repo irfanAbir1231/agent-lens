@@ -18,6 +18,7 @@ from app.db.models import (
     AuditEventRecord,
     CaseNoteRecord,
     CaseRecord,
+    EvaluationMetricSnapshot,
     HumanDecisionRecord,
     PolicySnippet,
     ProviderBalance,
@@ -236,24 +237,6 @@ def get_scenario_manifest(scenario_id: ScenarioId, seed: int) -> ScenarioManifes
     )
 
 
-def ensure_seeded(
-    *,
-    session_factory: sessionmaker[Session],
-    scenario_id: ScenarioId,
-    seed: int,
-) -> None:
-    with session_factory() as session:
-        active_scenario = session.scalar(
-            select(Scenario).where(Scenario.is_active.is_(True))
-        )
-        if active_scenario is None:
-            seed_database(
-                session_factory=session_factory,
-                scenario_id=scenario_id,
-                seed=seed,
-            )
-
-
 def seed_database(
     *,
     session_factory: sessionmaker[Session],
@@ -298,6 +281,7 @@ def write_generated_summary(
 
 def _clear_existing_data(session: Session) -> None:
     for model in (
+        EvaluationMetricSnapshot,
         AuditEventRecord,
         HumanDecisionRecord,
         CaseNoteRecord,

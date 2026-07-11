@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.schemas.enums import ScenarioId
@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     app_name: str = "agentlens-api"
     app_version: str = "0.1.0"
     api_v1_prefix: str = "/api/v1"
-    database_url: str = "sqlite:///./agentlens.sqlite3"
+    database_url: str = ""
+    migration_database_url: str | None = None
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     default_scenario: ScenarioId = ScenarioId.NORMAL_DAY
     default_seed: int = 2026
@@ -36,6 +37,17 @@ class Settings(BaseSettings):
             origins = [origin.strip() for origin in value.split(",") if origin.strip()]
             return origins or ["http://localhost:3000"]
         return value
+
+    @field_validator("openai_api_key", mode="before")
+    @classmethod
+    def empty_openai_key_is_unset(cls, value: object) -> object:
+        return None if value == "" else value
+
+    @model_validator(mode="after")
+    def require_database_url(self) -> Settings:
+        if not self.database_url.strip():
+            raise ValueError("DATABASE_URL is required.")
+        return self
 
 
 @lru_cache(maxsize=1)

@@ -8,8 +8,10 @@ version = "0.1.0"
 description = "FastAPI backend foundation for the AgentLens prototype."
 requires-python = ">=3.14"
 dependencies = [
+  "alembic>=1.16,<2.0",
   "fastapi>=0.116,<1.0",
   "openai>=2.38,<3.0",
+  "psycopg[binary]>=3.2,<4.0",
   "pydantic>=2.11,<3.0",
   "pydantic-settings>=2.10,<3.0",
   "sqlalchemy>=2.0.41,<3.0",
@@ -24,8 +26,8 @@ dev = [
   "ruff>=0.12,<1.0",
 ]
 
-[tool.setuptools]
-packages = ["app"]
+[tool.setuptools.packages.find]
+include = ["app*"]
 
 [tool.ruff]
 target-version = "py314"

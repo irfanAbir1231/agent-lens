@@ -6,7 +6,10 @@ import pytest
 from sqlalchemy import func, select
 
 from app.core.config import Settings
-from app.db.initialization import create_engine_and_session_factory, initialize_database
+from app.db.initialization import (
+    create_engine_and_session_factory,
+    initialize_test_database,
+)
 from app.db.models import ProviderBalance, ProviderFeedState, Scenario, Transaction
 from app.db.seed.service import seed_database
 from app.schemas.enums import DataHealthStatus, Provider, ScenarioId
@@ -25,7 +28,7 @@ def _seed_and_fetch(
         default_seed=seed,
     )
     engine, session_factory = create_engine_and_session_factory(settings)
-    initialize_database(engine)
+    initialize_test_database(engine)
     summary = seed_database(
         session_factory=session_factory,
         scenario_id=scenario_id,
@@ -78,8 +81,8 @@ def test_conflicting_balance_is_explicit_and_reproducible(tmp_path: Path) -> Non
 
     first_engine, first_factory = create_engine_and_session_factory(first_settings)
     second_engine, second_factory = create_engine_and_session_factory(second_settings)
-    initialize_database(first_engine)
-    initialize_database(second_engine)
+    initialize_test_database(first_engine)
+    initialize_test_database(second_engine)
     seed_database(
         session_factory=first_factory,
         scenario_id=ScenarioId.CONFLICTING_BALANCE,
@@ -131,7 +134,7 @@ def test_normal_scenario_has_no_conflicting_balance_evidence(tmp_path: Path) -> 
         default_seed=2026,
     )
     engine, session_factory = create_engine_and_session_factory(settings)
-    initialize_database(engine)
+    initialize_test_database(engine)
     seed_database(
         session_factory=session_factory,
         scenario_id=ScenarioId.NORMAL_DAY,
@@ -175,7 +178,7 @@ def test_required_scenarios_are_seeded(
         default_seed=2026,
     )
     engine, session_factory = create_engine_and_session_factory(settings)
-    initialize_database(engine)
+    initialize_test_database(engine)
     seed_database(
         session_factory=session_factory,
         scenario_id=scenario_id,

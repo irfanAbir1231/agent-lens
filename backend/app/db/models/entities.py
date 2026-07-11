@@ -311,3 +311,16 @@ class AuditEventRecord(Base):
     case_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+
+class EvaluationMetricSnapshot(Base):
+    __tablename__ = "evaluation_metric_snapshots"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    metric_group: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    evaluator_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    sample_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    measured_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), nullable=False, index=True
+    )
+    metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)

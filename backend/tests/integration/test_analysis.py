@@ -14,7 +14,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.ai.schemas import SanitizedAdvisoryInput
 from app.core.config import Settings
 from app.core.errors import AppError
-from app.db.initialization import create_engine_and_session_factory, initialize_database
+from app.db.initialization import (
+    create_engine_and_session_factory,
+    initialize_test_database,
+)
 from app.db.models import (
     AlertRecord,
     AnalysisRecord,
@@ -96,7 +99,7 @@ def _database(
         openai_api_key=SecretStr("test-key"),
     )
     engine, factory = create_engine_and_session_factory(settings)
-    initialize_database(engine)
+    initialize_test_database(engine)
     seed_database(session_factory=factory, scenario_id=scenario, seed=2026)
     return settings, engine, factory
 

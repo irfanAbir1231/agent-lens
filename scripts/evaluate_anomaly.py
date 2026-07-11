@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -11,16 +12,30 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 
+ANOMALY_EVALUATOR_VERSION = "anomaly-evaluation-v1"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Evaluate unusual-activity rules.")
+    parser.add_argument(
+        "--persist",
+        action="store_true",
+        help="Persist the measured snapshot through DATABASE_URL.",
+    )
+    return parser.parse_args()
+
+
 def main() -> int:
     from app.core.config import Settings
     from app.db.initialization import (
         create_engine_and_session_factory,
-        initialize_database,
+        initialize_test_database,
     )
     from app.db.seed.service import seed_database
     from app.schemas.enums import AlertType, Provider, ScenarioId
     from app.services.alert_service import AlertService
 
+    args = parse_args()
     scenarios = (
         ScenarioId.NORMAL_DAY,
         ScenarioId.EID_SPIKE,
@@ -41,7 +56,7 @@ def main() -> int:
                 default_seed=2026,
             )
             engine, factory = create_engine_and_session_factory(settings)
-            initialize_database(engine)
+            initialize_test_database(engine)
             seed_database(
                 session_factory=factory,
                 scenario_id=scenario,
@@ -53,7 +68,8 @@ def main() -> int:
             detected = {
                 (item.agent_id, Provider(item.provider)): item
                 for item in projected
-                if item.alert_type
+                if item.provider is not None
+                and item.alert_type
                 in {
                     AlertType.UNUSUAL_ACTIVITY,
                     AlertType.COMBINED_OPERATIONAL_REVIEW,
@@ -94,6 +110,14 @@ def main() -> int:
             "production calibration evidence."
         ),
     }
+    if args.persist:
+        from metric_persistence import persist_metric_snapshot
+
+        persist_metric_snapshot(
+            metric_group="ANOMALY",
+            evaluator_version=ANOMALY_EVALUATOR_VERSION,
+            result=metrics,
+        )
     print(json.dumps(metrics, indent=2, sort_keys=True))
     return 0
 

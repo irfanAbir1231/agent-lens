@@ -15,8 +15,7 @@ from app.api.router import router as api_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import bind_request_id, clear_request_id, setup_logging
-from app.db.initialization import create_engine_and_session_factory, initialize_database
-from app.db.seed.service import ensure_seeded
+from app.db.initialization import create_engine_and_session_factory
 
 logger = logging.getLogger(__name__)
 
@@ -70,12 +69,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        initialize_database(engine)
-        ensure_seeded(
-            session_factory=session_factory,
-            scenario_id=active_settings.default_scenario,
-            seed=active_settings.default_seed,
-        )
         yield
         engine.dispose()
 

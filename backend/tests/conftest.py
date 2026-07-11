@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Callable, Generator
 from pathlib import Path
 
@@ -7,9 +8,14 @@ import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings
-from app.db.initialization import create_engine_and_session_factory, initialize_database
+from app.db.initialization import (
+    create_engine_and_session_factory,
+    initialize_test_database,
+)
 from app.db.seed.service import seed_database
 from app.schemas.enums import ScenarioId
+
+os.environ.setdefault("DATABASE_URL", "sqlite://")
 
 
 @pytest.fixture
@@ -38,7 +44,7 @@ def seeded_session_factory(
 ) -> Generator[sessionmaker[Session]]:
     settings = make_settings()
     engine, session_factory = create_engine_and_session_factory(settings)
-    initialize_database(engine)
+    initialize_test_database(engine)
     seed_database(
         session_factory=session_factory,
         scenario_id=settings.default_scenario,

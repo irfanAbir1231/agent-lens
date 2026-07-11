@@ -1,3 +1,3 @@
-from app.db.seed.service import ensure_seeded, seed_database
+from app.db.seed.service import seed_database
 
-__all__ = ["ensure_seeded", "seed_database"]
+__all__ = ["seed_database"]

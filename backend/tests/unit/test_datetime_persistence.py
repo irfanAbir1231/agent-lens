@@ -7,7 +7,10 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings
-from app.db.initialization import create_engine_and_session_factory, initialize_database
+from app.db.initialization import (
+    create_engine_and_session_factory,
+    initialize_test_database,
+)
 from app.db.models import (
     Agent,
     Area,
@@ -27,7 +30,7 @@ def make_session_factory(
 ) -> tuple[Engine, sessionmaker[Session]]:
     settings = Settings(database_url=f"sqlite:///{tmp_path / f'{suffix}.sqlite3'}")
     engine, session_factory = create_engine_and_session_factory(settings)
-    initialize_database(engine)
+    initialize_test_database(engine)
     return engine, session_factory
 
 
@@ -150,7 +153,7 @@ def test_seeded_database_reads_return_utc_aware_datetimes(tmp_path: Path) -> Non
         default_seed=2026,
     )
     engine, session_factory = create_engine_and_session_factory(settings)
-    initialize_database(engine)
+    initialize_test_database(engine)
     seed_database(
         session_factory=session_factory,
         scenario_id=ScenarioId.NORMAL_DAY,

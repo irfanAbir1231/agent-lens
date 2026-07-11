@@ -9,3 +9,8 @@ class HealthResponse(AgentLensSchema):
     status: Literal["healthy"] = "healthy"
     service: str
     version: str
+
+
+class ReadinessResponse(AgentLensSchema):
+    status: Literal["ready"] = "ready"
+    database: Literal["available"] = "available"
