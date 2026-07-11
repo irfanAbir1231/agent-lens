@@ -9,21 +9,28 @@ BACKEND_ROOT = REPO_ROOT / "backend"
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from app.core.config import Settings
-from app.db.initialization import create_engine_and_session_factory, initialize_database
-from app.db.seed.service import seed_database, write_generated_summary
-from app.schemas.enums import ScenarioId
+from app.core.config import Settings  # noqa: E402
+from app.db.initialization import (  # noqa: E402
+    create_engine_and_session_factory,
+    initialize_database,
+)
+from app.db.seed.service import seed_database, write_generated_summary  # noqa: E402
+from app.schemas.enums import ScenarioId  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate deterministic AgentLens synthetic data.")
+    parser = argparse.ArgumentParser(
+        description="Generate deterministic AgentLens synthetic data."
+    )
     parser.add_argument(
         "--scenario",
         required=True,
         choices=[scenario.value for scenario in ScenarioId],
         help="Scenario identifier to seed.",
     )
-    parser.add_argument("--seed", type=int, default=2026, help="Deterministic random seed.")
+    parser.add_argument(
+        "--seed", type=int, default=2026, help="Deterministic random seed."
+    )
     parser.add_argument(
         "--database-url",
         default="sqlite:///./backend/agentlens.sqlite3",

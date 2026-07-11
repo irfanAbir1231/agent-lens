@@ -459,6 +459,16 @@ def _similar_case_summaries() -> list[SimilarCaseSummary]:
             outcome="RESOLVED",
             tags=["rocket", "delayed_feed", "data_quality"],
         ),
+        SimilarCaseSummary(
+            id="CASE-SUM-003",
+            title="Synthetic repeated-amount review",
+            summary=(
+                "A synthetic repeated-amount pattern was manually checked; "
+                "no automated restriction or financial action was taken."
+            ),
+            outcome="RESOLVED",
+            tags=["nagad", "repeated_amount", "unusual_activity", "sanitized"],
+        ),
     ]
 
 
