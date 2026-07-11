@@ -185,8 +185,7 @@ export async function loadOverviewViewModel(): Promise<OverviewViewModel> {
   const bkash = requireProvider(overview.providerSummaries, "BKASH");
   const nagad = requireProvider(overview.providerSummaries, "NAGAD");
   const rocket = requireProvider(overview.providerSummaries, "ROCKET");
-  const activityAlert = alerts.find((alert) => alert.alertId === "ALT-2039");
-  if (!activityAlert) throw new FrontendApiError("UNAVAILABLE", "Priority alert ALT-2039 is unavailable.", 503);
+  const activityAlert = alerts.find((alert) => alert.alertId === "ALT-2039") ?? alerts[0] ?? null;
 
   return {
     summaryMetrics: [
@@ -203,7 +202,7 @@ export async function loadOverviewViewModel(): Promise<OverviewViewModel> {
     ],
     priorityAlerts: [
       { id: "LIQUIDITY-NAGAD", severity: "Critical", tone: "critical", message: "Nagad balance may be exhausted in approximately 37 minutes.", confidence: formatConfidence(nagad.confidence), actionLabel: "View AGENT-104", actionHref: "/agents/AGENT-104" },
-      { id: activityAlert.alertId, severity: "High", tone: "watch", message: activityAlert.title, confidence: formatConfidence(activityAlert.confidence), actionLabel: "Open alert evidence", actionHref: `/alerts/${activityAlert.alertId}` },
+      ...(activityAlert ? [{ id: activityAlert.alertId, severity: "High", tone: "watch" as const, message: activityAlert.title, confidence: formatConfidence(activityAlert.confidence), actionLabel: "Open alert evidence", actionHref: `/alerts/${activityAlert.alertId}` }] : []),
       { id: "DATA-ROCKET", severity: "Medium", tone: "unknown", message: "Rocket provider feed is delayed by 22 minutes.", confidence: formatConfidence(rocket.confidence), actionLabel: "Review data status", actionHref: "/data-health" },
     ],
     dataHealth: (["BKASH", "NAGAD", "ROCKET"] as ProviderId[]).map<DataHealthViewModel>((providerId) => {

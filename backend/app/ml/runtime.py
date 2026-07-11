@@ -10,6 +10,27 @@ import pandas as pd
 
 from app.ml.features import latest_feature_row
 
+# Model bundles are ~5MB joblib files. ModelRuntime/AnomalyModelRuntime are
+# constructed fresh on every request (they're built inside per-request
+# services), so caching only on `self._bundle` re-deserializes from disk on
+# every request. Cache by resolved path at module scope instead, so the
+# bundle is loaded once per process.
+_BUNDLE_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def _load_bundle(artifact_path: Path, kind: str) -> dict[str, Any]:
+    key = str(artifact_path.resolve())
+    cached = _BUNDLE_CACHE.get(key)
+    if cached is not None:
+        return cached
+    if not artifact_path.is_file():
+        raise FileNotFoundError(artifact_path)
+    value = joblib.load(artifact_path)
+    if not isinstance(value, dict):
+        raise ValueError(f"{kind} artifact must contain a dictionary bundle.")
+    _BUNDLE_CACHE[key] = value
+    return value
+
 
 @dataclass(frozen=True)
 class ModelPrediction:
@@ -48,12 +69,7 @@ class ModelRuntime:
 
     def _load(self) -> dict[str, Any]:
         if self._bundle is None:
-            if not self.available:
-                raise FileNotFoundError(self._artifact_path)
-            value = joblib.load(self._artifact_path)
-            if not isinstance(value, dict):
-                raise ValueError("Forecast artifact must contain a dictionary bundle.")
-            self._bundle = value
+            self._bundle = _load_bundle(self._artifact_path, "Forecast")
         return self._bundle
 
 
@@ -82,12 +98,7 @@ class AnomalyModelRuntime:
 
     def _load(self) -> dict[str, Any]:
         if self._bundle is None:
-            if not self.available:
-                raise FileNotFoundError(self._artifact_path)
-            value = joblib.load(self._artifact_path)
-            if not isinstance(value, dict):
-                raise ValueError("Anomaly artifact must contain a dictionary bundle.")
-            self._bundle = value
+            self._bundle = _load_bundle(self._artifact_path, "Anomaly")
         return self._bundle
 
 
