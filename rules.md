@@ -509,6 +509,104 @@ Page identity and primary action
 - This section governs future frontend prompts unless the repository owners
   explicitly update it together.
 
+## SonarQube Quality Rules
+
+SonarQube or SonarQube Cloud is part of the AgentLens completion criteria. All
+future frontend and backend work must be written with the configured quality
+profile and Quality Gate in mind, even when a local scanner is unavailable.
+
+The current project dashboard shows a security rating of `C`, one security
+issue associated with `frontend/package.json`, and maintainability findings. It
+also shows a failed latest analysis with the Quality Gate not computed. These
+screenshots are evidence of work to investigate, not enough information to
+guess a dependency fix or suppress a finding.
+
+### Quality Gate Interpretation
+
+- A passed Quality Gate is the target for `main` and pull requests.
+- A failed, canceled, missing, or `Not computed` analysis does not count as a
+  pass.
+- Scanner or workflow failures must be reported separately from code findings.
+- The configured SonarQube Quality Gate and quality profile are authoritative;
+  do not invent replacement thresholds in application code.
+- New code must not introduce blocker or critical issues, vulnerabilities,
+  exposed secrets, or unreviewed security hotspots.
+- Do not worsen security, reliability, maintainability, duplication, or test
+  coverage on new code.
+
+### Finding Triage
+
+For every relevant finding, record:
+
+```text
+Sonar rule or issue key:
+Severity and type:
+File and line:
+Why it occurs:
+Proposed fix:
+Behavioral risk:
+Validation:
+```
+
+- Read the exact finding before changing code. Do not infer the fix from a
+  summary rating alone.
+- Fix root causes in the smallest owned scope.
+- Security and reliability findings take priority over maintainability cleanup.
+- Do not mix broad Sonar cleanup with an unrelated feature prompt.
+- Do not mark an issue false-positive or accepted-risk without an explicit,
+  documented technical reason and owner agreement.
+- Do not add blanket exclusions, `NOSONAR`, or rule suppressions to make the
+  dashboard green.
+
+### Frontend Sonar Expectations
+
+- Keep TypeScript strict and avoid `any`, unsafe assertions, and unchecked
+  nullable values.
+- Keep functions and components focused; extract logic when cognitive
+  complexity becomes difficult to review.
+- Avoid duplicated business mappings, status logic, and large repeated JSX.
+- Use stable React keys and valid hook dependencies.
+- Remove unused imports, variables, branches, and unreachable code.
+- Handle Promise rejections and typed API failures deliberately.
+- Do not expose secrets through `NEXT_PUBLIC_*`, browser code, logs, or error
+  messages.
+- Avoid `dangerouslySetInnerHTML`; if a reviewed use becomes unavoidable,
+  sanitize the input and document the boundary.
+- Do not use weak randomness or client-side presentation state for security or
+  authorization decisions.
+- Preserve semantic HTML and accessibility; do not trade accessibility for a
+  lower issue count.
+
+### Dependency Findings
+
+- Open the Sonar finding and identify the exact package, advisory, dependency
+  path, and safe target version before editing a manifest.
+- Dependency changes must follow the reservation and communication rules for
+  `frontend/package.json`, `frontend/package-lock.json`, or
+  `backend/pyproject.toml`.
+- Never blindly update all packages to address one finding.
+- Prefer the smallest supported upgrade that resolves the advisory and remains
+  compatible with the application.
+- Regenerate the lockfile with the repository package manager and rerun build,
+  tests, and Sonar analysis after an approved dependency update.
+- The current `frontend/package.json` security finding remains open until its
+  exact Sonar issue details are inspected and a verified update is completed.
+
+### Validation and Reporting
+
+Before completing a prompt:
+
+1. Run the normal application lint, type, build, and test checks available for
+   the changed scope.
+2. Run or wait for SonarQube analysis when the project workflow exposes it.
+3. Check the Quality Gate and new-code findings, not only the overall ratings.
+4. Report analysis failures, unavailable scans, and unresolved findings
+   explicitly.
+5. Include SonarQube status in the detailed commit or handoff validation notes.
+
+Do not claim SonarQube passed unless a completed analysis for the relevant
+commit reports a passing Quality Gate.
+
 ## Conflict-Safe Completion Checklist
 
 ```text
@@ -520,6 +618,8 @@ Page identity and primary action
 [ ] API contracts were agreed.
 [ ] No broad formatting occurred.
 [ ] Relevant validation passed.
+[ ] SonarQube analysis completed or its unavailability was reported.
+[ ] No unresolved new blocker, critical, vulnerability, or security-hotspot issue.
 [ ] Pull request was reviewed.
 [ ] Main demo flow still works.
 ```
