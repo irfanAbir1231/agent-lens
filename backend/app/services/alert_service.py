@@ -29,6 +29,20 @@ from app.services.retrieval_service import RetrievalService
 
 PROJECTION_VERSION = "alert-projection-v1"
 
+# build_projections() re-runs a full synchronous ML pipeline (data-quality
+# evaluation, XGBoost forecast, and anomaly scoring) across every agent and
+# provider - roughly 10-15s of compute. The demo dataset is a frozen
+# snapshot tied to the active scenario (see Scenario.generated_at), so this
+# result is a pure function of (scenario_id, include_low, agent_id) and
+# never changes until a different scenario is activated. Caching it in
+# process memory turns every request after the first, for a given scenario,
+# into a cache hit instead of a full recompute. _overlay_persisted() still
+# runs uncached on every call, since it reflects live human decisions that
+# can change within the same scenario.
+_ProjectionCacheKey = tuple[str, int, bool, str | None]
+_ProjectionCacheValue = tuple[Scenario, list[AlertDetail]]
+_PROJECTION_CACHE: dict[_ProjectionCacheKey, _ProjectionCacheValue] = {}
+
 
 class AlertService:
     def __init__(self, session: Session) -> None:
@@ -91,6 +105,42 @@ class AlertService:
         self, *, include_low: bool = False, agent_id: str | None = None
     ) -> tuple[Scenario, list[AlertDetail]]:
         scenario, agent_sources = self._repository.get_projection_sources()
+        # Keying on scenario.id alone isn't safe: the same scenario can have
+        # its underlying transactions/balances/policy library mutated in
+        # place (tests do this deliberately to verify drift and sanitization
+        # behavior, and a reseed could too) without the scenario row itself
+        # changing. Everything hashed below is plain scalars already fetched
+        # or cheap to fetch, so this is negligible next to the ML pipeline it
+        # guards, and invalidates the cache the instant anything that feeds
+        # into a projection actually changes.
+        data_fingerprint = hash(
+            (
+                tuple(agent_sources),
+                tuple(
+                    (
+                        item.id,
+                        item.title,
+                        item.summary,
+                        item.alert_type,
+                        tuple(item.permitted_action_categories),
+                    )
+                    for item in self._repository.list_policy_snippets()
+                ),
+                tuple(
+                    (item.id, item.title, item.summary, item.outcome, tuple(item.tags))
+                    for item in self._repository.list_similar_cases()
+                ),
+            )
+        )
+        cache_key = (scenario.id, data_fingerprint, include_low, agent_id)
+        cached = _PROJECTION_CACHE.get(cache_key)
+        if cached is not None:
+            # Pair the cached results with the scenario instance just fetched
+            # from the current session, not the cached one - the cached
+            # Scenario belongs to a previous request's (now-closed) session
+            # and would raise DetachedInstanceError if anything touched an
+            # unloaded attribute on it.
+            return scenario, cached[1]
         by_provider = {
             provider: [
                 provider_source
@@ -173,6 +223,7 @@ class AlertService:
                     )
                 )
         results.sort(key=lambda item: (item.priority, item.id))
+        _PROJECTION_CACHE[cache_key] = (scenario, results)
         return scenario, results
 
     def _anomaly_score(self, source: object) -> float | None:
@@ -191,7 +242,7 @@ class AlertService:
         ]
         try:
             return self._anomaly_model.score(rows)
-        except (FileNotFoundError, KeyError, TypeError, ValueError):
+        except FileNotFoundError, KeyError, TypeError, ValueError:
             return None
 
     def _overlay_persisted(
