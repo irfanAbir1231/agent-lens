@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.security import CurrentPrincipal
 from app.db.session import get_db_session
 from app.schemas.metrics import OverviewResponse
 from app.services.overview_service import OverviewService
@@ -14,5 +15,7 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 
 
 @router.get("/overview", response_model=OverviewResponse)
-async def get_overview(session: DbSession) -> OverviewResponse:
-    return OverviewService(session).get_overview()
+async def get_overview(
+    principal: CurrentPrincipal, session: DbSession
+) -> OverviewResponse:
+    return OverviewService(session).get_overview(principal)

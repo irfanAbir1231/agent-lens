@@ -20,10 +20,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), apiConfig.timeoutMilliseconds);
   try {
+    const actorId = await getActiveActor();
     const response = await fetch(`${apiConfig.baseUrl}${path}`, {
       ...init,
       signal: controller.signal,
-      headers: { Accept: "application/json", "X-Actor-ID": getActiveActor(), ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
+      headers: { Accept: "application/json", "X-Actor-ID": actorId, ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
       // This is a live operational dashboard, not static content: Next.js's
       // fetch patching defaults an unspecified `cache` to "force-cache" for
       // GET requests, which would silently serve a stale snapshot from

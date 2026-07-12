@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useDemoRole } from "@/features/authorization/demo-role-context";
 import { navigationForRole } from "@/features/navigation/navigation-config";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { role, roleLabel, roleDescription, resetRole } = useDemoRole();
   const [resetMessage, setResetMessage] = useState("");
   const visibleItems = navigationForRole(role);
 
   function resetDemo() {
     resetRole();
-    setResetMessage("Demo presentation reset to Provider Operations.");
+    router.refresh();
+    setResetMessage("Demo presentation reset to Nagad Provider.");
   }
 
   return (

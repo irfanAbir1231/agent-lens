@@ -31,7 +31,9 @@ class OverviewRepository:
         statement = select(func.coalesce(func.sum(Agent.shared_cash_minor), 0))
         return int(self._session.scalar(statement) or 0)
 
-    def provider_totals(self) -> list[ProviderTotalSummary]:
+    def provider_totals(
+        self, providers: tuple[Provider, ...] = ()
+    ) -> list[ProviderTotalSummary]:
         statement = (
             select(
                 ProviderBalance.provider,
@@ -40,6 +42,10 @@ class OverviewRepository:
             .group_by(ProviderBalance.provider)
             .order_by(ProviderBalance.provider)
         )
+        if providers:
+            statement = statement.where(
+                ProviderBalance.provider.in_([item.value for item in providers])
+            )
         return [
             ProviderTotalSummary(
                 provider=Provider(provider),
@@ -48,18 +54,25 @@ class OverviewRepository:
             for provider, total_balance in self._session.execute(statement)
         ]
 
-    def feed_summary(self) -> list[ProviderFeedSummary]:
+    def feed_summary(
+        self, providers: tuple[Provider, ...] = ()
+    ) -> list[ProviderFeedSummary]:
         statement = select(
             ProviderFeedState.provider,
             ProviderFeedState.status,
             ProviderFeedState.last_received_at,
         )
+        if providers:
+            statement = statement.where(
+                ProviderFeedState.provider.in_([item.value for item in providers])
+            )
         grouped: dict[str, list[tuple[DataHealthStatus, datetime]]] = defaultdict(list)
         for provider, status, last_received_at in self._session.execute(statement):
             grouped[provider].append((DataHealthStatus(status), last_received_at))
 
         summaries: list[ProviderFeedSummary] = []
-        for provider in Provider:
+        visible_providers = providers or tuple(Provider)
+        for provider in visible_providers:
             entries = grouped.get(provider.value, [])
             if not entries:
                 summaries.append(

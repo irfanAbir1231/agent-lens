@@ -15,6 +15,7 @@ export interface AlertListRowViewModel {
   confidence: string;
   status: AlertStatus;
   created: string;
+  isShortageNotification: boolean;
 }
 
 export interface AlertListViewModel {
@@ -27,6 +28,7 @@ export interface AlertDetailViewModel {
   caseId: string | null;
   title: string;
   provider: string;
+  providerId: ProviderId | null;
   agentId: string;
   severity: string;
   confidence: string;
@@ -70,6 +72,7 @@ export async function loadAlertListViewModel(): Promise<AlertListViewModel> {
       confidence: formatConfidence(alert.confidence),
       status: alert.status,
       created: formatDateTime(alert.createdAt),
+      isShortageNotification: alert.agentId === "AGENT-104" && alert.providerId === "NAGAD" && (alert.alertType === "LIQUIDITY_PRESSURE" || alert.alertType === "COMBINED_OPERATIONAL_REVIEW"),
     })),
   };
 }
@@ -83,6 +86,7 @@ export async function loadAlertDetailViewModel(alertId: string): Promise<AlertDe
     caseId: analysis.caseId ?? relatedCase?.caseId ?? null,
     title: alert.title,
     provider: providerLabel(alert.providerId),
+    providerId: alert.providerId,
     agentId: alert.agentId,
     severity: formatStatus(alert.severity),
     confidence: formatConfidence(alert.confidence),

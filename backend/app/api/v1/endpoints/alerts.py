@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.core.security import CurrentPrincipal
 from app.db.session import get_db_session
 from app.schemas.alert import AlertDetail, AlertListResponse
 from app.schemas.enums import AlertType, Provider, Severity
@@ -16,6 +17,7 @@ DbSession = Annotated[Session, Depends(get_db_session)]
 
 @router.get("", response_model=AlertListResponse)
 async def list_alerts(
+    principal: CurrentPrincipal,
     session: DbSession,
     provider: Annotated[Provider | None, Query()] = None,
     severity: Annotated[Severity | None, Query()] = None,
@@ -24,6 +26,7 @@ async def list_alerts(
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> AlertListResponse:
     return AlertService(session).list_alerts(
+        principal,
         provider=provider,
         severity=severity,
         alert_type=alert_type,
@@ -33,5 +36,7 @@ async def list_alerts(
 
 
 @router.get("/{alert_id}", response_model=AlertDetail)
-async def get_alert(alert_id: str, session: DbSession) -> AlertDetail:
-    return AlertService(session).get_alert(alert_id=alert_id)
+async def get_alert(
+    alert_id: str, principal: CurrentPrincipal, session: DbSession
+) -> AlertDetail:
+    return AlertService(session).get_alert(principal, alert_id=alert_id)
