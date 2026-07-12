@@ -3,11 +3,29 @@ import { ConfidenceBar } from "@/components/ui/confidence-bar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { ProviderStatusViewModel } from "../overview-view-model";
 
+const providerLogos: Record<string, string> = {
+  BKASH: "/assets/BKash-bKash-Logo.wine.svg",
+  NAGAD: "/assets/Nagad-Logo.wine.svg",
+  ROCKET: "/assets/vecteezy_rocket-color-logo-mobile-banking-icon_68706013.png",
+};
+
 export function ProviderStatusCard({ provider }: { provider: ProviderStatusViewModel }) {
+  const logoSrc = providerLogos[provider.providerId.toUpperCase()];
+
   return (
     <article className={`flex min-h-[310px] flex-col rounded-lg border bg-[var(--color-panel)] p-5 shadow-panel ${provider.prominent ? "border-[var(--color-critical)] ring-2 ring-[var(--color-critical-soft)]" : "border-[var(--color-border)]"}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-xl font-bold text-[var(--color-text-primary)]">{provider.name}</h3>
+        <div className="flex items-center gap-3">
+          {logoSrc && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={logoSrc}
+              alt={`${provider.name} logo`}
+              className="h-8 w-auto max-w-[80px] object-contain"
+            />
+          )}
+          <h3 className="text-xl font-bold text-[var(--color-text-primary)]">{provider.name}</h3>
+        </div>
         <StatusBadge label={provider.statusLabel} tone={provider.statusTone} />
       </div>
       <p className="mt-5 text-sm text-[var(--color-text-secondary)]">Provider balance</p>
