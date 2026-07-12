@@ -82,16 +82,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.session_factory = session_factory
 
     app.add_middleware(
+        RequestIdMiddleware,
+        header_name=active_settings.request_id_header,
+    )
+    app.add_middleware(
         CORSMiddleware,
         allow_origins=active_settings.cors_origins,
         allow_origin_regex=active_settings.cors_origin_regex,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-    )
-    app.add_middleware(
-        RequestIdMiddleware,
-        header_name=active_settings.request_id_header,
     )
 
     register_exception_handlers(app)
