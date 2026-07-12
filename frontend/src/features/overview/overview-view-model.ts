@@ -174,7 +174,7 @@ function pressureRow(agent: AgentSummary, agentAlerts: Alert[], rank: number): A
     rank,
     agentId: agent.agentId,
     area: agent.area.split(",")[0],
-    highestPressure: topAlert ? `${providerNames[topAlert.providerId]} ${formatStatus(topAlert.severity)}` : "Monitoring",
+    highestPressure: topAlert ? `${topAlert.providerId ? providerNames[topAlert.providerId] : "Shared cash"} ${formatStatus(topAlert.severity)}` : "Monitoring",
     pressureTone: topAlert ? severityTone(topAlert.severity) : "healthy",
     sharedCash: formatBDT(agent.sharedPhysicalCashMinor),
     primaryRisk: topAlert ? topAlert.title : "No active alerts",
