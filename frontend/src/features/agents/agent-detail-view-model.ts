@@ -166,13 +166,13 @@ function headerStatus(balances: ProviderBalance[]): { label: string; tone: Statu
   return { label: "Operating normally", tone: "healthy" };
 }
 
-function requireForecast(forecasts: LiquidityForecast[], agentId: string): LiquidityForecast {
-  const forecast = forecasts.find((item) => item.pressureStatus === "CRITICAL") ?? forecasts[0];
+function requireForecast(forecasts: LiquidityForecast[], agentId: string, selectedProvider?: ProviderId): LiquidityForecast {
+  const forecast = (selectedProvider ? forecasts.find((item) => item.providerId === selectedProvider) : undefined) ?? forecasts.find((item) => item.pressureStatus === "CRITICAL") ?? forecasts[0];
   if (!forecast) throw new FrontendApiError("UNAVAILABLE", `A liquidity forecast for agent '${agentId}' is unavailable.`, 503);
   return forecast;
 }
 
-export async function loadAgentDetailViewModel(agentId: string): Promise<AgentDetailViewModel> {
+export async function loadAgentDetailViewModel(agentId: string, selectedProvider?: ProviderId): Promise<AgentDetailViewModel> {
   const [agent, forecastBundle, transactions, alerts, cases, dataQuality] = await Promise.all([
     getAgent(agentId),
     getAgentForecastBundle(agentId),
@@ -182,7 +182,7 @@ export async function loadAgentDetailViewModel(agentId: string): Promise<AgentDe
     getDataQuality(),
   ]);
 
-  const forecast = requireForecast(forecastBundle.providerForecasts, agentId);
+  const forecast = requireForecast(forecastBundle.providerForecasts, agentId, selectedProvider);
   const shared = forecastBundle.sharedCashForecast;
   const providerName = providerNames[forecast.providerId];
   const shortageMinutes = forecast.estimatedShortageMinutes ?? 0;

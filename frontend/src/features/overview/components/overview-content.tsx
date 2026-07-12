@@ -13,6 +13,7 @@ import { ProviderStatusGrid } from "./provider-status-grid";
 import { SharedCashDemandChart } from "./shared-cash-demand-chart";
 import { ShortageTimeline } from "./shortage-timeline";
 import { SummaryMetrics } from "./summary-metrics";
+import { useDemoRole } from "@/features/authorization/demo-role-context";
 
 function currentTimeLabel(): string {
   return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date());
@@ -23,6 +24,10 @@ export function OverviewContent({ initialData }: { initialData: OverviewViewMode
   const [lastUpdated, setLastUpdated] = useState(initialData.initialLastUpdatedLabel);
   const [message, setMessage] = useState("");
   const [busyAction, setBusyAction] = useState<"scenario" | "refresh" | null>(null);
+  const { providerId } = useDemoRole();
+  const providers = providerId ? data.providers.filter((item) => item.providerId === providerId) : data.providers;
+  const shortageTimeline = providerId ? data.shortageTimeline.filter((item) => item.provider.toUpperCase() === providerId) : data.shortageTimeline;
+  const dataHealth = providerId ? data.dataHealth.filter((item) => item.providerId === providerId) : data.dataHealth;
 
   async function runEidScenario() {
     setBusyAction("scenario");
@@ -68,14 +73,14 @@ export function OverviewContent({ initialData }: { initialData: OverviewViewMode
     <div className="space-y-7">
       <PageHeader title="Operations Control Tower" description="Unified operational visibility across three logically separate providers." actions={actions} />
       <SummaryMetrics metrics={data.summaryMetrics} />
-      <ProviderStatusGrid providers={data.providers} />
+      <ProviderStatusGrid providers={providers} />
       <div className="grid gap-5 xl:grid-cols-2">
-        <Panel title="Shortage timeline" description="Readable provider coverage and shortage estimates."><ShortageTimeline items={data.shortageTimeline} /></Panel>
+        <Panel title="Shortage timeline" description="Readable provider coverage and shortage estimates."><ShortageTimeline items={shortageTimeline} /></Panel>
         <Panel title="Shared cash and demand" description="Simulated movement over the current operating window."><SharedCashDemandChart /></Panel>
       </div>
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
         <Panel title="Priority alerts" description="Signals ordered by operational urgency."><PriorityAlerts alerts={data.priorityAlerts} /></Panel>
-        <Panel title="Data-health summary" description="Freshness and availability of each provider feed."><DataHealthSummary items={data.dataHealth} /></Panel>
+        <Panel title="Data-health summary" description="Freshness and availability of each provider feed."><DataHealthSummary items={dataHealth} /></Panel>
       </div>
       <Panel title="Agent pressure" description="Outlets ranked by immediate service and data pressure."><AgentPressureTable rows={data.agentPressure} /></Panel>
     </div>

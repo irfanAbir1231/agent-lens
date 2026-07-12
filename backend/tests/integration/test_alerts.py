@@ -17,6 +17,7 @@ async def test_normal_and_eid_activity_do_not_project_alerts(
         async with async_test_client(
             make_settings(scenario=scenario, suffix=f"alerts-{scenario.value}")
         ) as client:
+            client.headers["X-Actor-ID"] = "USER-SYS-001"
             response = await client.get("/api/v1/alerts")
             assert response.status_code == 200
             assert response.json()["alerts"] == []
@@ -30,6 +31,7 @@ async def test_repeated_activity_alert_detail_is_stable_and_sanitized(
         scenario=ScenarioId.REPEATED_TRANSACTIONS, suffix="alerts-repeated"
     )
     async with async_test_client(settings) as client:
+        client.headers["X-Actor-ID"] = "USER-SYS-001"
         first = (await client.get("/api/v1/alerts?provider=NAGAD")).json()
         second = (await client.get("/api/v1/alerts?provider=NAGAD")).json()
         assert first == second
@@ -57,6 +59,7 @@ async def test_hidden_nagad_combines_measured_activity_and_liquidity_pressure(
         scenario=ScenarioId.HIDDEN_NAGAD_SHORTAGE, suffix="alerts-hidden"
     )
     async with async_test_client(settings) as client:
+        client.headers["X-Actor-ID"] = "USER-SYS-001"
         body = (await client.get("/api/v1/alerts?provider=NAGAD")).json()
         alert = next(item for item in body["alerts"] if item["agent_id"] == "AGENT-104")
         detail = (await client.get(f"/api/v1/alerts/{alert['id']}")).json()
@@ -70,6 +73,39 @@ async def test_hidden_nagad_combines_measured_activity_and_liquidity_pressure(
 
 
 @pytest.mark.anyio
+async def test_provider_and_agent_actors_only_receive_scoped_alerts(
+    make_settings: Callable[..., Settings],
+) -> None:
+    settings = make_settings(
+        scenario=ScenarioId.HIDDEN_NAGAD_SHORTAGE,
+        suffix="alerts-actor-scope",
+    )
+    async with async_test_client(settings) as client:
+        client.headers["X-Actor-ID"] = "USER-SYS-001"
+        nagad = await client.get(
+            "/api/v1/alerts",
+            headers={"X-Actor-ID": "USER-NAGAD-OPS"},
+        )
+        assert nagad.status_code == 200
+        assert nagad.json()["alerts"]
+        assert {item["provider"] for item in nagad.json()["alerts"]} == {"NAGAD"}
+
+        agent = await client.get(
+            "/api/v1/alerts",
+            headers={"X-Actor-ID": "USER-AGENT-104"},
+        )
+        assert agent.status_code == 200
+        assert agent.json()["alerts"]
+        assert {item["agent_id"] for item in agent.json()["alerts"]} == {"AGENT-104"}
+
+        bkash = await client.get(
+            "/api/v1/alerts",
+            headers={"X-Actor-ID": "USER-BKASH-OPS"},
+        )
+        assert all(item["provider"] == "BKASH" for item in bkash.json()["alerts"])
+
+
+@pytest.mark.anyio
 async def test_conflicting_provider_is_blocked_and_unknown_id_is_structured(
     make_settings: Callable[..., Settings],
 ) -> None:
@@ -77,6 +113,7 @@ async def test_conflicting_provider_is_blocked_and_unknown_id_is_structured(
         scenario=ScenarioId.CONFLICTING_BALANCE, suffix="alerts-conflict"
     )
     async with async_test_client(settings) as client:
+        client.headers["X-Actor-ID"] = "USER-SYS-001"
         listed = (await client.get("/api/v1/alerts?provider=BKASH")).json()
         alert_id = listed["alerts"][0]["id"]
         detail = (await client.get(f"/api/v1/alerts/{alert_id}")).json()

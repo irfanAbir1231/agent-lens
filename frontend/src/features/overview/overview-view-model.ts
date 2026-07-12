@@ -76,7 +76,7 @@ export interface OverviewViewModel {
 const providerNames: Record<ProviderId, string> = { BKASH: "bKash", NAGAD: "Nagad", ROCKET: "Rocket" };
 const providerActions: Record<ProviderId, { label: string; href: string }> = {
   BKASH: { label: "View outlet", href: "/agents/AGENT-104" },
-  NAGAD: { label: "Investigate shortage", href: "/agents/AGENT-104" },
+  NAGAD: { label: "View Nagad agents", href: "/agents" },
   ROCKET: { label: "Review data status", href: "/data-health" },
 };
 const severityOrder: Record<Severity, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
@@ -187,9 +187,8 @@ const FEATURED_AGENT_ID = "AGENT-104";
 export async function loadOverviewViewModel(): Promise<OverviewViewModel> {
   const { overview, agents, alerts, dataQuality } = await loadOverviewBundle();
   const referenceTime = new Date(overview.generatedAt);
-  const bkash = requireProvider(overview.providerSummaries, "BKASH");
-  const nagad = requireProvider(overview.providerSummaries, "NAGAD");
-  const rocket = requireProvider(overview.providerSummaries, "ROCKET");
+  const visibleProviders = overview.providerSummaries;
+  const nagad = visibleProviders.find((item) => item.providerId === "NAGAD");
   const activityAlert = alerts.find((alert) => alert.alertId === "ALT-2039") ?? alerts[0] ?? null;
   const featuredAgentId = FEATURED_AGENT_ID;
 
@@ -200,24 +199,21 @@ export async function loadOverviewViewModel(): Promise<OverviewViewModel> {
       { label: "Open alerts", value: String(overview.openAlerts), description: "Signals requiring operational review", status: { label: "Action needed", tone: "critical" } },
       { label: "Critical cases", value: String(overview.criticalCases), description: "Cases at the highest priority tier", status: { label: "Critical", tone: "critical" } },
     ],
-    providers: [
-      providerCard(bkash, referenceTime),
-      providerCard(nagad, referenceTime),
-      providerCard(rocket, referenceTime),
-    ],
-    shortageTimeline: [
-      { provider: "Nagad", value: nagad.estimatedShortageMinutes !== null ? formatDuration(nagad.estimatedShortageMinutes) : "See agent detail", widthPercent: nagad.estimatedShortageMinutes !== null ? Math.max(10, Math.min(100, Math.round((nagad.estimatedShortageMinutes / 240) * 100))) : 100, tone: nagad.estimatedShortageMinutes !== null ? "critical" : "healthy" },
-      { provider: "Rocket", value: rocket.status === "DELAYED" ? "Unknown because data is delayed" : "See agent detail", widthPercent: rocket.status === "DELAYED" ? 34 : 100, tone: rocket.status === "DELAYED" ? "unknown" : "healthy" },
-      { provider: "bKash", value: bkash.coverageMinutes !== null ? formatDuration(bkash.coverageMinutes) : "See agent detail", widthPercent: bkash.coverageMinutes !== null ? Math.max(10, Math.min(100, Math.round((bkash.coverageMinutes / 240) * 100))) : 100, tone: "healthy" },
-    ],
+    providers: visibleProviders.map((provider) => providerCard(provider, referenceTime)),
+    shortageTimeline: visibleProviders.map((provider) => ({
+      provider: providerNames[provider.providerId],
+      value: provider.status === "DELAYED" ? "Unknown because data is delayed" : provider.estimatedShortageMinutes !== null ? formatDuration(provider.estimatedShortageMinutes) : "See agent detail",
+      widthPercent: provider.status === "DELAYED" ? 34 : provider.estimatedShortageMinutes !== null ? Math.max(10, Math.min(100, Math.round((provider.estimatedShortageMinutes / 240) * 100))) : 100,
+      tone: provider.status === "DELAYED" ? "unknown" : provider.estimatedShortageMinutes !== null ? "critical" : "healthy",
+    })),
     priorityAlerts: [
-      ...(nagad.estimatedShortageMinutes !== null ? [{ id: "LIQUIDITY-NAGAD", severity: "Critical", tone: "critical" as const, message: `Nagad balance may be exhausted in approximately ${nagad.estimatedShortageMinutes} minutes.`, confidence: formatConfidence(nagad.confidence), actionLabel: `View ${featuredAgentId}`, actionHref: `/agents/${featuredAgentId}` }] : []),
+      ...(nagad?.estimatedShortageMinutes !== null && nagad !== undefined ? [{ id: "LIQUIDITY-NAGAD", severity: "Critical", tone: "critical" as const, message: `Nagad balance may be exhausted in approximately ${nagad.estimatedShortageMinutes} minutes.`, confidence: formatConfidence(nagad.confidence), actionLabel: `View ${featuredAgentId}`, actionHref: `/agents/${featuredAgentId}?provider=NAGAD&view=forecast#liquidity-forecast` }] : []),
       ...(activityAlert ? [{ id: activityAlert.alertId, severity: "High", tone: "watch" as const, message: activityAlert.title, confidence: formatConfidence(activityAlert.confidence), actionLabel: "Open alert evidence", actionHref: `/alerts/${activityAlert.alertId}` }] : []),
-      ...(rocket.status === "DELAYED" ? [{ id: "DATA-ROCKET", severity: "Medium", tone: "unknown" as const, message: `Rocket provider feed is delayed. Last update ${updatedLabel(rocket.lastUpdatedAt, referenceTime)}.`, confidence: formatConfidence(rocket.confidence), actionLabel: "Review data status", actionHref: "/data-health" }] : []),
+      ...visibleProviders.filter((provider) => provider.status === "DELAYED").map((provider) => ({ id: `DATA-${provider.providerId}`, severity: "Medium", tone: "unknown" as const, message: `${providerNames[provider.providerId]} provider feed is delayed. Last update ${updatedLabel(provider.lastUpdatedAt, referenceTime)}.`, confidence: formatConfidence(provider.confidence), actionLabel: "Review data status", actionHref: "/data-health" })),
     ],
-    dataHealth: (["BKASH", "NAGAD", "ROCKET"] as ProviderId[]).map<DataHealthViewModel>((providerId) => {
+    dataHealth: visibleProviders.map<DataHealthViewModel>((provider) => {
+      const providerId = provider.providerId;
       const quality = requireQuality(dataQuality, providerId);
-      const provider = requireProvider(overview.providerSummaries, providerId);
       return {
         providerId,
         provider: providerNames[providerId],

@@ -11,6 +11,7 @@ from app.analytics.data_quality.evaluator import DataQualityEvaluator
 from app.analytics.risk.evaluator import fuse_risk
 from app.core.config import get_settings
 from app.core.errors import NotFoundError
+from app.core.security import Principal
 from app.db.models import Scenario
 from app.ml.runtime import AnomalyModelRuntime
 from app.repositories.alert_repository import AlertRepository
@@ -28,6 +29,18 @@ from app.services.forecast_service import ForecastService
 from app.services.retrieval_service import RetrievalService
 
 PROJECTION_VERSION = "alert-projection-v1"
+
+
+def _in_scope(principal: Principal | None, alert: AlertDetail) -> bool:
+    if principal is None:
+        return True
+    if principal.providers and (
+        alert.provider is None or alert.provider not in principal.providers
+    ):
+        return False
+    if principal.agents and alert.agent_id not in principal.agents:
+        return False
+    return True
 
 # build_projections() re-runs a full synchronous ML pipeline (data-quality
 # evaluation, XGBoost forecast, and anomaly scoring) across every agent and
@@ -58,6 +71,7 @@ class AlertService:
 
     def list_alerts(
         self,
+        principal: Principal | None = None,
         *,
         provider: Provider | None,
         severity: Severity | None,
@@ -70,7 +84,8 @@ class AlertService:
         filtered = [
             item
             for item in projections
-            if (provider is None or item.provider == provider)
+            if _in_scope(principal, item)
+            and (provider is None or item.provider == provider)
             and (severity is None or item.severity == severity)
             and (alert_type is None or item.alert_type == alert_type)
         ]
@@ -86,11 +101,13 @@ class AlertService:
             ),
         )
 
-    def get_alert(self, *, alert_id: str) -> AlertDetail:
+    def get_alert(
+        self, principal: Principal | None = None, *, alert_id: str
+    ) -> AlertDetail:
         scenario, projections = self._build_projections()
         projections = self._overlay_persisted(scenario.id, projections)
         for item in projections:
-            if item.id == alert_id:
+            if item.id == alert_id and _in_scope(principal, item):
                 return item
         raise NotFoundError(
             code="alert_not_found",

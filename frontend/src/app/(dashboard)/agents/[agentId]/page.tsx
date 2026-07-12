@@ -12,11 +12,15 @@ import { RecentTransactions } from "@/features/agents/components/recent-transact
 import { RecommendedNextStep } from "@/features/agents/components/recommended-next-step";
 import { SharedCashForecastCard } from "@/features/agents/components/shared-cash-forecast-card";
 import { FrontendApiError } from "@/lib/api/errors";
+import type { ProviderId } from "@/types";
 
-export default async function AgentDetailPage({ params }: { params: { agentId: string } }) {
+const providerIds: ProviderId[] = ["BKASH", "NAGAD", "ROCKET"];
+
+export default async function AgentDetailPage({ params, searchParams }: { params: { agentId: string }; searchParams: { provider?: string } }) {
   let data;
   try {
-    data = await loadAgentDetailViewModel(params.agentId);
+    const selectedProvider = providerIds.find((item) => item === searchParams.provider);
+    data = await loadAgentDetailViewModel(params.agentId, selectedProvider);
   } catch (error) {
     if (error instanceof FrontendApiError && error.code === "NOT_FOUND") notFound();
     throw error;
@@ -28,7 +32,7 @@ export default async function AgentDetailPage({ params }: { params: { agentId: s
       <AgentSummary metrics={data.summary} />
       <SharedCashForecastCard forecast={data.sharedCashForecast} />
       <Panel title="Provider balances" description="Outlet-level balances, coverage, and confidence."><ProviderBalanceGrid providers={data.providerBalances} /></Panel>
-      <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
+      <div id="liquidity-forecast" className="scroll-mt-40 grid gap-5 xl:grid-cols-[1.5fr_1fr]">
         <Panel title={`${data.forecastChart.providerName} balance forecast`} description="Historical data and a simulated projection with an uncertainty range."><LiquidityForecastChart forecast={data.forecastChart} /></Panel>
         <Panel title={`Why ${data.forecastChart.providerName} is under pressure`} description="Primary factors behind the current estimate."><ForecastDriverList drivers={data.forecastDrivers} /></Panel>
       </div>

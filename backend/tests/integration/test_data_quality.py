@@ -275,7 +275,10 @@ async def test_pass_one_endpoints_remain_available(
     async with async_test_client(make_settings(suffix="pass-one-regression")) as client:
         responses = await asyncio.gather(
             client.get("/api/v1/health"),
-            client.get("/api/v1/overview"),
+            client.get(
+                "/api/v1/overview",
+                headers={"X-Actor-ID": "USER-SYS-001"},
+            ),
             client.get("/api/v1/agents"),
             client.get("/api/v1/agents/AGENT-101"),
         )

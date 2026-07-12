@@ -26,12 +26,12 @@ async def test_core_demo_flow_meets_local_responsiveness_budget(
         requests = [
             ("health", "/api/v1/health", None),
             ("ready", "/api/v1/ready", None),
-            ("overview", "/api/v1/overview", None),
+            ("overview", "/api/v1/overview", operations),
             ("agents", "/api/v1/agents?page_size=100", None),
             ("agent_detail", "/api/v1/agents/AGENT-104", None),
             ("forecast", "/api/v1/agents/AGENT-104/forecast", None),
             ("data_quality", "/api/v1/data-quality?page_size=100", None),
-            ("alerts", "/api/v1/alerts?page_size=100", None),
+            ("alerts", "/api/v1/alerts?page_size=100", operations),
             ("cases", "/api/v1/cases?page_size=100", operations),
             ("metrics", "/api/v1/metrics", management),
         ]

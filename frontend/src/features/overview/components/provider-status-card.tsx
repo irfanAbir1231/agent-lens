@@ -28,7 +28,7 @@ export function ProviderStatusCard({ provider }: { provider: ProviderStatusViewM
         </div>
         <StatusBadge label={provider.statusLabel} tone={provider.statusTone} />
       </div>
-      <p className="mt-5 text-sm text-[var(--color-text-secondary)]">Provider balance</p>
+      <p className="mt-5 text-sm text-[var(--color-text-secondary)]">Network provider balance</p>
       <p className="mt-1 text-3xl font-bold text-[var(--color-text-primary)]">{provider.balance}</p>
       <dl className="mt-4 flex items-center justify-between gap-4 border-y border-[var(--color-border)] py-3 text-sm">
         <dt className="text-[var(--color-text-secondary)]">{provider.detailLabel}</dt>

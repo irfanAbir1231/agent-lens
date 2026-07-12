@@ -32,7 +32,7 @@ export default async function AlertEvidencePage({ params }: { params: { alertId:
         <Panel title="Uncertainty" description="Limits that affect interpretation."><UncertaintyPanel limitations={alert.limitations} /></Panel>
       </div>
       <Panel title="AI advisory" description="Structured context for a human reviewer."><AiAlertExplanation summary={alert.aiSummary} why={alert.aiWhy} sources={alert.sources} /></Panel>
-      <Panel title="Recommended human review" description="Verify operational context before choosing an outcome."><RecommendedReview caseId={alert.caseId} agentId={alert.agentId} /></Panel>
+      <Panel title="Recommended human review" description="Verify operational context before choosing an outcome."><RecommendedReview caseId={alert.caseId} agentId={alert.agentId} providerId={alert.providerId} /></Panel>
     </div>
   );
 }

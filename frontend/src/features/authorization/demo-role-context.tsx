@@ -1,30 +1,27 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import { currentUser } from "@/mocks/current-user";
-import type { UserRole } from "@/types";
-import { setActiveActor } from "@/lib/api/actor";
-import { getRoleDescription } from "./role-description";
-import { getRoleLabel } from "./role-label";
+import type { ProviderId, UserRole } from "@/types";
+import { setActivePersona } from "@/lib/api/actor";
+import { DEFAULT_DEMO_PERSONA, demoPersonas, type DemoPersona } from "./demo-persona";
 
 interface DemoRoleContextValue {
+  persona: DemoPersona;
   role: UserRole;
+  providerId?: ProviderId;
   roleLabel: string;
   roleDescription: string;
-  setRole: (role: UserRole) => void;
+  setPersona: (persona: DemoPersona) => void;
   resetRole: () => void;
 }
 
 const DemoRoleContext = createContext<DemoRoleContextValue | null>(null);
 
-export function DemoRoleProvider({ children }: { children: ReactNode }) {
-  const [role, updateRole] = useState<UserRole>(currentUser.role);
-  const setRole = (nextRole: UserRole) => {
-    setActiveActor(nextRole);
-    updateRole(nextRole);
-  };
-  const value = useMemo(() => ({ role, roleLabel: getRoleLabel(role), roleDescription: getRoleDescription(role), setRole, resetRole: () => setRole(currentUser.role) }), [role]);
-
+export function DemoRoleProvider({ children, initialPersona = DEFAULT_DEMO_PERSONA }: { children: ReactNode; initialPersona?: DemoPersona }) {
+  const [persona, updatePersona] = useState<DemoPersona>(initialPersona);
+  const setPersona = (nextPersona: DemoPersona) => { setActivePersona(nextPersona); updatePersona(nextPersona); };
+  const definition = demoPersonas[persona];
+  const value = useMemo(() => ({ persona, role: definition.role, providerId: definition.providerId, roleLabel: definition.label, roleDescription: definition.description, setPersona, resetRole: () => setPersona(DEFAULT_DEMO_PERSONA) }), [persona, definition]);
   return <DemoRoleContext.Provider value={value}>{children}</DemoRoleContext.Provider>;
 }
 

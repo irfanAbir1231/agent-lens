@@ -5,7 +5,9 @@ import { apiConfig } from "./config";
 import { fastApiClient } from "./fastapi-client";
 import type { AlertDetailDto, AlertListDto, AlertSummaryDto } from "./backend-dto";
 
-const title = (item: AlertSummaryDto) => `${item.provider ?? "Agent"} ${item.alert_type.toLowerCase().replaceAll("_", " ")} requires human review`;
+const title = (item: AlertSummaryDto) => item.agent_id === "AGENT-104" && item.provider === "NAGAD" && (item.alert_type === "LIQUIDITY_PRESSURE" || item.alert_type === "COMBINED_OPERATIONAL_REVIEW")
+  ? "AGENT-104 Nagad liquidity shortage requires investigation"
+  : `${item.provider ?? "Agent"} ${item.alert_type.toLowerCase().replaceAll("_", " ")} requires human review`;
 export const mapSummary = (item: AlertSummaryDto): Alert => ({ alertId: item.id, agentId: item.agent_id, providerId: item.provider, title: title(item), alertType: item.alert_type as Alert["alertType"], severity: item.severity as Alert["severity"], confidence: item.confidence, status: item.status as Alert["status"], summary: "Backend analysis identified an operational signal that requires contextual human review.", disclaimer: "Decision support only. Verify operational context before taking action.", evidence: [], possibleLegitimateExplanations: [], limitations: [], createdAt: item.created_at });
 const mapDetail = (item: AlertDetailDto): Alert => ({ ...mapSummary(item), summary: item.risk.reasons.join(" ") || "Operational review required.", evidence: item.anomaly.evidence.map((evidence) => ({ code: evidence.code, label: evidence.description, value: String(evidence.measured_value), interpretation: "Measured backend evidence; human context is required." })), possibleLegitimateExplanations: item.anomaly.legitimate_explanations, limitations: [...item.limitations, ...item.anomaly.limitations] });
 

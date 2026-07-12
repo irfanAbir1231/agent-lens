@@ -13,6 +13,7 @@ async def test_overview_returns_seeded_summary(
     make_settings: Callable[..., Settings],
 ) -> None:
     async with async_test_client(make_settings()) as client:
+        client.headers["X-Actor-ID"] = "USER-SYS-001"
         response = await client.get("/api/v1/overview")
 
         assert response.status_code == 200
@@ -34,6 +35,7 @@ async def test_provider_totals_and_shared_cash_are_kept_separate(
     make_settings: Callable[..., Settings],
 ) -> None:
     async with async_test_client(make_settings()) as client:
+        client.headers["X-Actor-ID"] = "USER-SYS-001"
         response = await client.get("/api/v1/overview")
 
         assert response.status_code == 200
@@ -53,3 +55,21 @@ async def test_provider_totals_and_shared_cash_are_kept_separate(
             "ROCKET": 26_640_000,
         }
         assert provider_total_sum > body["total_shared_cash_minor"]
+
+
+@pytest.mark.anyio
+async def test_provider_operations_overview_is_provider_scoped(
+    make_settings: Callable[..., Settings],
+) -> None:
+    settings = make_settings(suffix="overview-provider-scope")
+    async with async_test_client(settings) as client:
+        client.headers["X-Actor-ID"] = "USER-SYS-001"
+        response = await client.get(
+            "/api/v1/overview",
+            headers={"X-Actor-ID": "USER-NAGAD-OPS"},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [item["provider"] for item in body["provider_totals"]] == ["NAGAD"]
+        assert [item["provider"] for item in body["feed_summary"]] == ["NAGAD"]
